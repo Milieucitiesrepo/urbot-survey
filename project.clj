@@ -1,9 +1,19 @@
 (defproject urbot-survey "0.1.0-SNAPSHOT"
   :dependencies [[org.clojure/clojure "1.8.0"]
-                 [org.clojure/clojurescript "1.9.473"]
+                 [org.clojure/clojurescript "1.9.494"]
 
-                 [reagent "0.6.0"]
-                 [re-frame "0.9.2"]]
+                 [cljs-uuid "0.0.4"]
+                 [cljs-http "0.1.42"]
+                 [cljs-react-material-ui "0.2.38"]
+
+                 [reagent "0.6.0" :exclusions [org.clojure/tools.reader cljsjs/react]]
+                 [re-frame "0.9.2"]
+
+                 [com.7theta/utilis "0.8.3"]
+                 [com.andrewmcveigh/cljs-time "0.4.0"]
+                 [com.cemerick/url "0.1.1"]
+
+                 [com.stuartsierra/component "0.3.2"]]
   :plugins [[lein-cljsbuild "1.1.4"]]
   :min-lein-version "2.5.3"
   :clean-targets ^{:protect false} ["resources/public/js/compiled" "target"]
@@ -11,7 +21,7 @@
   :figwheel {:css-dirs ["resources/public/css"]}
   :profiles {:dev {:source-paths ["dev/clj"]
                    :dependencies [[ns-tracker "0.3.1"]
-                                  [binaryage/devtools "0.9.1"]
+                                  [binaryage/devtools "0.9.2"]
                                   [figwheel-sidecar "0.5.9"]
                                   [com.cemerick/piggieback "0.2.1"]
                                   [ring/ring-devel "1.5.1"]]
