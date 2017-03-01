@@ -84,22 +84,38 @@
                             :max-height 400
                             :display "flex"
                             :flex-direction "column"
-                            :background "green"}}
+                            :background "#FAFAFA"}}
          [typeform {:href typeform-embed-url}]]))))
 
 (defn- widget-frame
   []
   (fn []
-    (let [height 500]
+    (let [this (reagent/current-component)
+          {:keys [open?] :or {open? false}} (reagent/state this)
+          height (if open? 500 50)
+          width (if open? 350 50)]
       [mui/paper {:style {:position "fixed"
-                          :width 350
+                          :width width
                           :height height
                           :max-height height
                           :bottom 32
                           :right 32}
                   :rounded false
                   :zDepth 3}
-       [:div {:style {:display "flex"
-                      :flex-direction "column"}}]
-       [survey-header]
-       [survey-body]])))
+       (if open?
+         [:div {:style {:width "100%"
+                        :height "100%"}}
+          [survey-header]
+          [survey-body]]
+         [mui/flat-button
+          {:label "X"
+           :style {:width "100%"
+                   :height "100%"
+                   :min-width width
+                   :max-width width
+                   :min-height height
+                   :max-height height
+                   :margin 0
+                   :padding 0
+                   :border-radius 0}
+           :onTouchTap (fn [_] (reagent/set-state this {:open? true}))}])])))
