@@ -1,8 +1,8 @@
 (ns urbot-survey.subs
-    (:require-macros [reagent.ratom :refer [reaction]])
-    (:require [re-frame.core :refer [reg-sub]]))
+  (:require-macros [reagent.ratom :refer [reaction]])
+  (:require [re-frame.core :refer [reg-sub]]))
 
 (reg-sub
- :name
+ :survey
  (fn [db]
-   (:name db)))
+   (:survey db)))

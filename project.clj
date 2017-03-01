@@ -9,10 +9,13 @@
                  [reagent "0.6.0" :exclusions [org.clojure/tools.reader cljsjs/react]]
                  [re-frame "0.9.1"]
 
+                 [aysylu/loom "1.0.0"]
+
+                 [tomthought/palette "0.1.2"]
+
                  [com.7theta/utilis "0.8.3"]
                  [com.andrewmcveigh/cljs-time "0.4.0"]
                  [com.cemerick/url "0.1.1"]
-
                  [com.stuartsierra/component "0.3.2"]]
   :plugins [[lein-cljsbuild "1.1.4"]]
   :min-lein-version "2.5.3"
