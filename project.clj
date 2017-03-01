@@ -4,10 +4,10 @@
 
                  [cljs-uuid "0.0.4"]
                  [cljs-http "0.1.42"]
-                 [cljs-react-material-ui "0.2.38"]
+                 [cljs-react-material-ui "0.2.27"]
 
                  [reagent "0.6.0" :exclusions [org.clojure/tools.reader cljsjs/react]]
-                 [re-frame "0.9.2"]
+                 [re-frame "0.9.1"]
 
                  [com.7theta/utilis "0.8.3"]
                  [com.andrewmcveigh/cljs-time "0.4.0"]
