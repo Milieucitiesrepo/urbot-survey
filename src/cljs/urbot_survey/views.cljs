@@ -34,7 +34,7 @@
     (fn []
       (let [this (reagent/current-component)
             {:keys [hover?]} (reagent/state this)
-            {:keys [artifacts]} @survey
+            {:keys [artifacts] :as survey} @survey
             {:keys [href background label]} (first artifacts)
 
             text-color "#FAFAFA"
@@ -46,7 +46,8 @@
                             :height 100
                             :display "flex"
                             :padding 8
-                            :background background}}
+                            :background background}
+                    :onClick (fn [_] (re-frame/dispatch [:survey (assoc survey :open? false)]))}
          [:a {:className "surveyHeaderLink"
               :onMouseOver (fn [] (reagent/set-state this {:hover? true}))
               :onMouseOut (fn [] (reagent/set-state this {:hover? false}))
@@ -75,47 +76,59 @@
   []
   (let [survey (re-frame/subscribe [:survey])]
     (fn []
-      (let [{:keys [typeform-embed-url]} @survey]
-        [mui/paper {:zDepth 0
-                    :rounded false
-                    :style {:width "100%"
-                            :height "100%"
-                            :min-height 400
-                            :max-height 400
-                            :display "flex"
-                            :flex-direction "column"
-                            :background "#FAFAFA"}}
-         [typeform {:href typeform-embed-url}]]))))
+      (reagent/create-class
+       {:component-did-mount
+        (fn [this]
+          (go (<! (timeout 450))
+              (reagent/set-state this {:render? true})))
+        :reagent-render
+        (fn []
+          (let [this (reagent/current-component)
+                {:keys [render?]} (reagent/state this)
+                {:keys [typeform-embed-url]} @survey]
+            [mui/paper {:zDepth 0
+                        :rounded false
+                        :style {:width "100%"
+                                :height "100%"
+                                :min-height 400
+                                :max-height 400
+                                :display "flex"
+                                :flex-direction "column"
+                                :background "#FAFAFA"}}
+             (if render?
+               [typeform {:href typeform-embed-url}]
+               [:div])]))}))))
 
 (defn- widget-frame
   []
-  (fn []
-    (let [this (reagent/current-component)
-          {:keys [open?] :or {open? false}} (reagent/state this)
-          height (if open? 500 50)
-          width (if open? 350 50)]
-      [mui/paper {:style {:position "fixed"
-                          :width width
-                          :height height
-                          :max-height height
-                          :bottom 32
-                          :right 32}
-                  :rounded false
-                  :zDepth 3}
-       (if open?
-         [:div {:style {:width "100%"
-                        :height "100%"}}
-          [survey-header]
-          [survey-body]]
-         [mui/flat-button
-          {:label "X"
-           :style {:width "100%"
-                   :height "100%"
-                   :min-width width
-                   :max-width width
-                   :min-height height
-                   :max-height height
-                   :margin 0
-                   :padding 0
-                   :border-radius 0}
-           :onTouchTap (fn [_] (reagent/set-state this {:open? true}))}])])))
+  (let [survey (re-frame/subscribe [:survey])]
+    (fn []
+      (let [{:keys [open?] :as survey} @survey
+            height (if open? 500 50)
+            width (if open? 350 50)]
+        [mui/paper {:style {:position "fixed"
+                            :width width
+                            :height height
+                            :max-height height
+                            :bottom 32
+                            :right 32
+                            :background (if open? "#FAFAFA" (:color (:flat-button (styles/theme))))}
+                    :rounded false
+                    :zDepth 3}
+         (if open?
+           [:div {:style {:width "100%"
+                          :height "100%"}}
+            [survey-header]
+            [survey-body]]
+           [mui/flat-button
+            {:label "X"
+             :style {:width "100%"
+                     :height "100%"
+                     :min-width width
+                     :max-width width
+                     :min-height height
+                     :max-height height
+                     :margin 0
+                     :padding 0
+                     :border-radius 0}
+             :onTouchTap (fn [_] (re-frame/dispatch [:survey (assoc survey :open? true)]))}])]))))
