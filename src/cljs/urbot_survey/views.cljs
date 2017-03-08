@@ -11,6 +11,8 @@
 
             [loom.graph :as loom]
 
+            [palette.core :as palette]
+
             [reagent.core :as reagent]
             [re-frame.core :as re-frame]))
 
@@ -38,7 +40,7 @@
             {:keys [href background label]} (first artifacts)
 
             text-color "#FAFAFA"
-            hover-text-color "#AFAFAF"]
+            hover-text-color (palette/darken text-color)]
         [mui/paper {:zDepth 0
                     :rounded false
                     :style {:width "100%"
@@ -47,7 +49,7 @@
                             :display "flex"
                             :padding 8
                             :background background}
-                    :onClick (fn [_] (re-frame/dispatch [:survey (assoc survey :open? false)]))}
+                    :onClick (fn [_] (re-frame/dispatch [:survey (assoc survey :state :minimized)]))}
          [:a {:className "surveyHeaderLink"
               :onMouseOver (fn [] (reagent/set-state this {:hover? true}))
               :onMouseOut (fn [] (reagent/set-state this {:hover? false}))
@@ -100,28 +102,54 @@
                [:div])]))}))))
 
 (defn- widget-frame
+  "state in #{:hidden :minimized :open}"
   []
   (let [survey (re-frame/subscribe [:survey])]
     (fn []
-      (let [{:keys [open?] :as survey} @survey
-            height (if open? 500 50)
-            width (if open? 350 50)]
+      (let [{:keys [state] :or {state :minimized} :as survey} @survey
+            height (condp = state
+                     :hidden 0
+                     :minimized 100
+                     :open 500
+                     0)
+            width (condp = state
+                    :hidden 0
+                    :minimized 350
+                    :open 350
+                    0)
+            {:keys [artifacts] :as survey} survey
+            {:keys [href background label]} (first artifacts)]
         [mui/paper {:style {:position "fixed"
                             :width width
                             :height height
                             :max-height height
                             :bottom 32
                             :right 32
-                            :background (if open? "#FAFAFA" (:color (:flat-button (styles/theme))))}
+                            :background (condp = state
+                                          :open "#FAFAFA"
+                                          :minimized background
+                                          "#FAFAFA")}
                     :rounded false
                     :zDepth 3}
-         (if open?
+         (condp = state
+
+           :open
            [:div {:style {:width "100%"
                           :height "100%"}}
             [survey-header]
             [survey-body]]
+
+           :minimized
            [mui/flat-button
-            {:label "X"
+            {:label (reagent/as-element
+                     [:div {:style {:text-align "center"
+                                    :width "calc(100% - 32px)"
+                                    :height "100%"
+                                    :padding-left 16
+                                    :margin-bottom 16
+                                    :position "relative"
+                                    :bottom 18}} label])
+             :hoverColor (palette/darken background)
              :style {:width "100%"
                      :height "100%"
                      :min-width width
@@ -129,6 +157,17 @@
                      :min-height height
                      :max-height height
                      :margin 0
-                     :padding 0
+                     :padding-left 0
+                     :padding-right 0
                      :border-radius 0}
-             :onTouchTap (fn [_] (re-frame/dispatch [:survey (assoc survey :open? true)]))}])]))))
+             :onTouchTap (fn [_] (re-frame/dispatch
+                                 [:survey
+                                  (assoc
+                                   survey :state
+                                   (condp = state
+                                     :hidden :minimized
+                                     :minimized :open
+                                     :open :minimized
+                                     :hidden))]))}]
+
+           [:div])]))))
