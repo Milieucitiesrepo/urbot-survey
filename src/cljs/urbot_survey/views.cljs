@@ -75,8 +75,8 @@
                :style {:border-width 0}}]]))
 
 (defn survey-body
-  []
-  (let [survey (re-frame/subscribe [:survey])]
+  [{:keys [survey-id]}]
+  (let [survey (re-frame/subscribe [:survey survey-id])]
     (fn []
       (reagent/create-class
        {:component-did-mount
@@ -104,7 +104,8 @@
 (defn- widget-frame
   "state in #{:hidden :minimized :open}"
   []
-  (let [survey (re-frame/subscribe [:survey])]
+  (let [survey-id (str (gensym))
+        survey (re-frame/subscribe [:surveys survey-id])]
     (fn []
       (let [{:keys [state] :or {state :minimized} :as survey} @survey
             height (condp = state
@@ -136,8 +137,8 @@
            :open
            [:div {:style {:width "100%"
                           :height "100%"}}
-            [survey-header]
-            [survey-body]]
+            [survey-header {:survey-id survey-id}]
+            [survey-body {:survey-id survey-id}]]
 
            :minimized
            [mui/flat-button
@@ -161,7 +162,7 @@
                      :padding-right 0
                      :border-radius 0}
              :onTouchTap (fn [_] (re-frame/dispatch
-                                 [:survey
+                                 [:surveys survey-id
                                   (assoc
                                    survey :state
                                    (condp = state
