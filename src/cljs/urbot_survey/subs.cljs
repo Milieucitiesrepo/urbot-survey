@@ -3,6 +3,6 @@
   (:require [re-frame.core :refer [reg-sub]]))
 
 (reg-sub
- :survey
- (fn [db]
-   (:survey db)))
+ :surveys
+ (fn [db [_ survey-id]]
+   (get-in db [:surveys survey-id])))

@@ -4,12 +4,21 @@
             [urbot-survey.subs]
             [urbot-survey.views :as views]
             [reagent.core :as reagent]
-            [re-frame.core :as re-frame]))
+            [re-frame.core :as re-frame]
+            [utilis.types.keyword :refer [->keyword]]
+            [utilis.map :refer [map-keys]]))
 
 (defn mount-roots []
   (re-frame/clear-subscription-cache!)
   (doseq [element (array-seq (.getElementsByClassName js/document "urbot-survey"))]
-    (reagent/render [views/main-panel] element)))
+    (reagent/render
+     [views/main-panel
+      {:data (->> (array-seq (.-attributes element))
+                  (map (fn [attr]
+                         [(.-name attr)
+                          (.-value attr)]))
+                  (into {})
+                  (map-keys ->keyword))}] element)))
 
 (defn ^:export init []
   (re-frame/dispatch-sync [:initialize-db])

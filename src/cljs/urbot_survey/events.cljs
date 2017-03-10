@@ -8,6 +8,6 @@
    db/default-db))
 
 (reg-event-db
- :survey
- (fn [db [_ survey]]
-   (assoc db :survey survey)))
+ :surveys
+ (fn [db [_ survey-id survey]]
+   (assoc-in db [:surveys survey-id] survey)))
