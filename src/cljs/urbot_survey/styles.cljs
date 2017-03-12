@@ -19,12 +19,12 @@
 
      :secondary-text-color (lighten "#000000" 0.50)
      :boosted-color "#FAFAFA"
-     :font-family "'Roboto', sans-serif"
+     :font-family "'Lato', sans-serif"
 
      :text-icons-color "#FAFAFA"
      :primary-text-color "#212121"
      :divider-color "#B6B6B6"
-     :font-weight 200
+     :font-weight 400
      :app-bar {:height 50
                :color "#FAFAFA"
                :text-color "#000000"}

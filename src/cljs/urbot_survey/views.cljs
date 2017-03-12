@@ -123,7 +123,8 @@
                           :padding 8
                           :display "flex"} style)}
      [:div {:style {:text-align "center"
-                    :margin "auto"}} title]]))
+                    :margin "auto"
+                    :font-weight 700}} title]]))
 
 #_{:survey? (= state :survey)
    :preview {:img-src "https://d4z6dx8qrln4r.cloudfront.net/image-f2014a7980f61d8471013003cfbeb78e-default.jpeg"
@@ -153,9 +154,24 @@
          [:div {:style {:width "100%"}}
 
           ;; preview image
-          [:img {:src (:img-src preview)
-                 :width "100%"
-                 :height "auto"}]
+          [:div {:style {:display "inline-block"
+                         :position "relative"}}
+           [:img {:src (:img-src preview)
+                  :width "100%"
+                  :height "auto"}]
+           [:div {:style {:position "absolute"
+                          :top 0 :left 0
+                          :width "calc(100% - 50px)"
+                          :height "calc(100% - 54px)"
+                          :background "rgba(0,0,0,0.40)"
+                          :display "flex"
+                          :padding 25}}
+            [:div {:style {:margin "auto"
+                           :text-align "center"
+                           :font-size 16
+                           :font-weight 700
+                           :line-height "22px"}}
+             (:img-caption preview)]]]
 
           ;; description text
           [:div {:style {:width "calc(100% - 16px)"
@@ -232,7 +248,7 @@
         :reagent-render
         (fn []
           (let [{:keys [state target-label] :or {state :hidden} :as survey} @survey
-                {:keys [primary-color text-icons-color]} (styles/theme)
+                {:keys [primary-color text-icons-color font-family font-weight]} (styles/theme)
                 height (state->height state)
                 width (state->width state)
                 tab-height 40
@@ -244,7 +260,9 @@
                                 :width width
                                 :max-height height
                                 :background "transparent"
-                                :color text-icons-color}
+                                :color text-icons-color
+                                :font-family font-family
+                                :font-weight font-weight}
                         :zDepth 3}
 
              ;; tab
