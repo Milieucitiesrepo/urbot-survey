@@ -4,11 +4,12 @@
 ;;; Declarations
 
 (def ^:private theme-atom (atom nil))
+(def ^:private milieu-blue "rgb(175,208,201)")
 
 ;;; Themes
 
 (def standard-desktop
-  (let [primary-color "rgb(72, 106, 137)"]
+  (let [primary-color milieu-blue]
     {:primary-color primary-color
      :dark-primary-color (darken primary-color)
      :light-primary-color (lighten primary-color)
@@ -32,9 +33,7 @@
      :text-field {:focus-color "#F6AE2D"}
      :snackbar {:text-color "#FAFAFA"
                 :background-color "#283845"
-                :action-color "#283845"}
-
-     }))
+                :action-color "#283845"}}))
 
 (def light-theme
   (merge standard-desktop

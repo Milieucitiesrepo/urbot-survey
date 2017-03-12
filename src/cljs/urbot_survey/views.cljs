@@ -107,6 +107,59 @@
                [typeform {:href (rand-nth survey-urls)}]
                [:div])]))}))))
 
+(defn- widget-tab
+  []
+  (fn [{:keys [style]}]
+    (let [{:keys [primary-color]} (styles/theme)]
+      [:div {:style (merge {:background primary-color
+                            :width 80 :height 35}
+                           style)}])))
+
+(defn- widget-header
+  []
+  (fn [{:keys [title style]}]
+    [:div {:style (merge {:width "100%"
+                          :display "flex"} style)}
+     [:span {:style {:text-align "center"
+                     :margin-left "auto"
+                     :margin-right "auto"
+                     :padding 8}} title]]))
+
+(defn- widget-body
+  []
+  (fn []
+    [:div "BODY"]))
+
+(defn- state->width
+  [state]
+  (condp = state
+    :hidden 350
+    :minimized 350
+    :open 350
+    :survey (fn []
+
+              ::calculate-height-here
+
+              800
+
+              )
+    0))
+
+(defn- state->height
+  [state]
+  (condp = state
+    :hidden 0
+    :minimized 100
+    :open 500
+    :survey (fn []
+
+              ::calculate-width-here
+
+              800
+
+              )
+    0))
+
 (defn- widget-frame
   "state in #{:hidden :minimized :open}"
   [{:keys [target-url target-label survey-urls]}]
@@ -135,66 +188,98 @@
         :reagent-render
         (fn []
           (let [{:keys [state target-label] :or {state :hidden} :as survey} @survey
-                background "#92C7C6"
-                height (condp = state
-                         :hidden 0
-                         :minimized 100
-                         :open 500
-                         0)
-                width (condp = state
-                        :hidden 350
-                        :minimized 350
-                        :open 350
-                        0)]
+                {:keys [primary-color text-icons-color]} (styles/theme)
+                height (state->height state)
+                width (state->width state)
+                tab-height 40
+                tab-width 100]
+
+
             [mui/paper {:style {:position "fixed"
+                                :right 32 :bottom 32
                                 :width width
                                 :height height
-                                :max-height height
-                                :bottom 32
-                                :right 32
-                                :background (condp = state
-                                              :open "#FAFAFA"
-                                              :minimized background
-                                              "#FAFAFA")}
-                        :rounded false
-                        :zDepth 3}
-             (condp = state
+                                :background "rgba(0,0,0,0.1)"
+                                :color text-icons-color}
+                        :zDepth 0}
 
-               :open
-               [:div {:style {:width "100%"
-                              :height "100%"}}
-                [survey-header {:survey-id survey-id}]
-                [survey-body {:survey-id survey-id}]]
+             ;; tab
+             [widget-tab
+              {:style {:position "absolute"
+                       :right 0 :top 0
+                       :width tab-width
+                       :height tab-height}}]
 
-               :minimized
-               [mui/flat-button
-                {:label (reagent/as-element
-                         [:div {:style {:text-align "center"
-                                        :width "calc(100% - 32px)"
-                                        :height "100%"
-                                        :padding-left 16
-                                        :margin-bottom 16
-                                        :position "relative"
-                                        :bottom 18}} target-label])
-                 :hoverColor (palette/darken background)
-                 :style {:width "100%"
-                         :height "100%"
-                         :min-width width
-                         :max-width width
-                         :min-height height
-                         :max-height height
-                         :margin 0
-                         :padding-left 0
-                         :padding-right 0
-                         :border-radius 0}
-                 :onTouchTap (fn [_] (re-frame/dispatch
-                                     [:surveys survey-id
-                                      (assoc
-                                       survey :state
-                                       (condp = state
-                                         :hidden :minimized
-                                         :minimized :open
-                                         :open :minimized
-                                         :hidden))]))}]
+             ;; content
+             [:div {:style {:height (- height tab-height)
+                            :width width
+                            :position "absolute"
+                            :top tab-height
+                            :background primary-color}}
 
-               [:div])]))}))))
+              ;; header
+              [widget-header {:title target-label}]
+
+              ;; body
+              [widget-body {:survey? (= state :survey)
+                            :preview {:img-src "https://d4z6dx8qrln4r.cloudfront.net/image-f2014a7980f61d8471013003cfbeb78e-default.jpeg"
+                                      :img-caption "Wakefield Spring Redesign Wakefield, La Pêche, QC"}
+                            :target {:href "https://milieu.io/en/wakefield"
+                                     :label "READ MORE"}
+                            :description "The Lorne Shouldice Spring ( Wakefield Spring) is a treasured source of potable freshwater. Do you have any concerns about the Spring and its infrastructure that you would like to see addressed?"
+                            :survey-button-label "Yes"}]]
+
+             ]
+
+            #_[mui/paper {:style {:position "fixed"
+                                  :width width
+                                  :height height
+                                  :max-height height
+                                  :bottom 32
+                                  :right 32
+                                  :background (condp = state
+                                                :open "#FAFAFA"
+                                                :minimized background
+                                                "#FAFAFA")}
+                          :rounded false
+                          :zDepth 3}
+               (condp = state
+
+                 :open
+                 [:div {:style {:width "100%"
+                                :height "100%"}}
+                  [survey-header {:survey-id survey-id}]
+                  [survey-body {:survey-id survey-id}]]
+
+                 :minimized
+                 [mui/flat-button
+                  {:label (reagent/as-element
+                           [:div {:style {:text-align "center"
+                                          :width "calc(100% - 32px)"
+                                          :height "100%"
+                                          :padding-left 16
+                                          :margin-bottom 16
+                                          :position "relative"
+                                          :bottom 18}} target-label])
+                   :hoverColor (palette/darken background)
+                   :style {:width "100%"
+                           :height "100%"
+                           :min-width width
+                           :max-width width
+                           :min-height height
+                           :max-height height
+                           :margin 0
+                           :padding-left 0
+                           :padding-right 0
+                           :border-radius 0}
+                   :onTouchTap (fn [_] (re-frame/dispatch
+                                       [:surveys survey-id
+                                        (assoc
+                                         survey :state
+                                         (condp = state
+                                           :hidden :minimized
+                                           :minimized :open
+                                           :open :minimized
+                                           :hidden))]))}]
+
+                 [:div])]))}))))
