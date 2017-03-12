@@ -109,11 +109,19 @@
 
 (defn- widget-tab
   []
-  (fn [{:keys [style]}]
-    (let [{:keys [primary-color]} (styles/theme)]
+  (fn [{:keys [style expand?] :or {expand? true}}]
+    (let [{:keys [primary-color text-icons-color]} (styles/theme)]
       [:div {:style (merge {:background primary-color
-                            :width 80 :height 35}
-                           style)}])))
+                            :width 80 :height 35
+                            :display "flex"}
+                           style)}
+       [(if expand?
+          ico/navigation-expand-less
+          ico/navigation-expand-more)
+        {:style {:width 20
+                 :height 20
+                 :margin "auto"}
+         :color text-icons-color}]])))
 
 (defn- widget-header
   []
@@ -289,7 +297,7 @@
                 height (state->height state)
                 width (state->width state)
                 tab-height 25
-                tab-width 60]
+                tab-width 50]
 
 
             [mui/paper {:style {:position "fixed"
@@ -314,7 +322,8 @@
                              :top 4
                              :z-index 3}}
                [widget-tab
-                {:style {:width tab-width
+                {:expand? (= state :minimize)
+                 :style {:width tab-width
                          :height tab-height
                          :float "right"
                          :-webkit-border-radius "8px 8px 0 0"
