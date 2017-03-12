@@ -118,17 +118,51 @@
 (defn- widget-header
   []
   (fn [{:keys [title style]}]
-    [:div {:style (merge {:width "100%"
+    [:div {:style (merge {:width "calc(100% - 16px)"
+                          :height "calc(100% - 16px)"
+                          :padding 8
                           :display "flex"} style)}
-     [:span {:style {:text-align "center"
-                     :margin-left "auto"
-                     :margin-right "auto"
-                     :padding 8}} title]]))
+     [:div {:style {:text-align "center"
+                    :margin "auto"}} title]]))
+
+#_{:survey? (= state :survey)
+   :preview {:img-src "https://d4z6dx8qrln4r.cloudfront.net/image-f2014a7980f61d8471013003cfbeb78e-default.jpeg"
+             :img-caption "Wakefield Spring Redesign Wakefield, La Pêche, QC"}
+   :target {:href "https://milieu.io/en/wakefield"
+            :label "READ MORE"}
+   :description "The Lorne Shouldice Spring ( Wakefield Spring) is a treasured source of potable freshwater. Do you have any concerns about the Spring and its infrastructure that you would like to see addressed?"
+   :survey-button-label "Yes"}
 
 (defn- widget-body
   []
-  (fn []
-    [:div "BODY"]))
+  (fn [{:keys [style survey? preview target description survey-button-label]}]
+    (let [padding 10]
+      [:div {:style (merge {:width (str "calc(100% - " (* 2 padding) "px)")
+                            #_:height #_(str "calc(100% - " (* 2 padding) "px)")
+                            :background "#FFFFFF"
+                            :padding padding} style)}
+
+       (if survey?
+
+         ;; show typeform survey in the widget body
+         [:div {:style {:width "100%"
+                        :height 600
+                        :background "red"}}]
+
+
+         ;; show the preview data in the widget body
+         [:div {:style {:width "100%"}}
+
+          ;; preview image
+          [:img {:src (:img-src preview)
+                 :width "100%"
+                 :height "auto"}]
+
+          ]
+
+         )
+
+       ])))
 
 (defn- state->width
   [state]
@@ -179,10 +213,10 @@
             (re-frame/dispatch [:surveys survey-id survey])
 
             ;; move survey to minimized after 3 seconds
-            (go (<! (timeout 3000))
+            (go (<! (timeout 3 #_3000))
                 (re-frame/dispatch
                  [:surveys survey-id
-                  (assoc survey :state :minimized)])))
+                  (assoc survey :state :open)])))
 
           )
         :reagent-render
@@ -198,36 +232,50 @@
             [mui/paper {:style {:position "fixed"
                                 :right 32 :bottom 32
                                 :width width
-                                :height height
-                                :background "rgba(0,0,0,0.1)"
+                                :max-height height
+                                :background "transparent"
                                 :color text-icons-color}
-                        :zDepth 0}
+                        :zDepth 3}
 
              ;; tab
              [widget-tab
-              {:style {:position "absolute"
-                       :right 0 :top 0
+              {:style {:position "relative"
+                       :left (str "calc(100% - " tab-width "px)")
+                       :top 0
                        :width tab-width
                        :height tab-height}}]
 
              ;; content
-             [:div {:style {:height (- height tab-height)
-                            :width width
-                            :position "absolute"
-                            :top tab-height
-                            :background primary-color}}
+             [:div
+              {:style {:max-height (- height tab-height)
+                       :width width
+                       :position "relative"
+                       :background primary-color
+
+                       :display "flex"
+                       :flex-direction "column"}}
 
               ;; header
-              [widget-header {:title target-label}]
+              [:div {:style {:height 40}}
+               [widget-header
+                {:title target-label}]]
 
               ;; body
-              [widget-body {:survey? (= state :survey)
-                            :preview {:img-src "https://d4z6dx8qrln4r.cloudfront.net/image-f2014a7980f61d8471013003cfbeb78e-default.jpeg"
-                                      :img-caption "Wakefield Spring Redesign Wakefield, La Pêche, QC"}
-                            :target {:href "https://milieu.io/en/wakefield"
-                                     :label "READ MORE"}
-                            :description "The Lorne Shouldice Spring ( Wakefield Spring) is a treasured source of potable freshwater. Do you have any concerns about the Spring and its infrastructure that you would like to see addressed?"
-                            :survey-button-label "Yes"}]]
+              [:div {:style {:max-height "calc(100% - 8px)"
+                             :width "calc(100% - 8px)"
+                             :overflow-y "scroll"
+                             :background primary-color
+                             :padding-left 4
+                             :padding-right 4
+                             :padding-bottom 4}}
+               [widget-body
+                {:survey? (= state :survey)
+                 :preview {:img-src "https://d4z6dx8qrln4r.cloudfront.net/image-f2014a7980f61d8471013003cfbeb78e-default.jpeg"
+                           :img-caption "Wakefield Spring Redesign Wakefield, La Pêche, QC"}
+                 :target {:href "https://milieu.io/en/wakefield"
+                          :label "READ MORE"}
+                 :description "The Lorne Shouldice Spring ( Wakefield Spring) is a treasured source of potable freshwater. Do you have any concerns about the Spring and its infrastructure that you would like to see addressed?"
+                 :survey-button-label "Yes"}]]]
 
              ]
 
