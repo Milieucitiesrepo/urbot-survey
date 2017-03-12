@@ -138,7 +138,6 @@
   (fn [{:keys [style survey? preview target description survey-button-label]}]
     (let [padding 10]
       [:div {:style (merge {:width (str "calc(100% - " (* 2 padding) "px)")
-                            #_:height #_(str "calc(100% - " (* 2 padding) "px)")
                             :background "#FFFFFF"
                             :padding padding} style)}
 
@@ -158,6 +157,17 @@
                  :width "100%"
                  :height "auto"}]
 
+          ;; description text
+          [:div {:style {:width "calc(100% - 16px)"
+                         :display "flex"
+                         :padding 8}}
+           [:div {:style {:margin "auto"
+                          :text-align "left"
+                          :color "rgb(100,100,100)"
+                          :font-size "12px"
+                          :line-height "16px"}}
+            description]]
+
           ]
 
          )
@@ -167,9 +177,9 @@
 (defn- state->width
   [state]
   (condp = state
-    :hidden 350
-    :minimized 350
-    :open 350
+    :hidden 300
+    :minimized 300
+    :open 300
     :survey (fn []
 
               ::calculate-height-here
@@ -274,7 +284,7 @@
                            :img-caption "Wakefield Spring Redesign Wakefield, La Pêche, QC"}
                  :target {:href "https://milieu.io/en/wakefield"
                           :label "READ MORE"}
-                 :description "The Lorne Shouldice Spring ( Wakefield Spring) is a treasured source of potable freshwater. Do you have any concerns about the Spring and its infrastructure that you would like to see addressed?"
+                 :description "The Lorne Shouldice Spring (Wakefield Spring) is a treasured source of potable freshwater. Do you have any concerns about the Spring and its infrastructure that you would like to see addressed?"
                  :survey-button-label "Yes"}]]]
 
              ]
