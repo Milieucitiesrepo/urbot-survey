@@ -124,12 +124,11 @@
                           :display "flex"} style)}
      [:div {:style {:text-align "center"
                     :margin "auto"
+                    :position "relative"
+                    :top -1
                     :font-weight 700}} title]]))
 
-#_{:survey? (= state :survey)
-   :preview {:img-src "https://d4z6dx8qrln4r.cloudfront.net/image-f2014a7980f61d8471013003cfbeb78e-default.jpeg"
-             :img-caption "Wakefield Spring Redesign Wakefield, La Pêche, QC"}
-   :target {:href "https://milieu.io/en/wakefield"
+#_{:target {:href "https://milieu.io/en/wakefield"
             :label "READ MORE"}
    :description "The Lorne Shouldice Spring ( Wakefield Spring) is a treasured source of potable freshwater. Do you have any concerns about the Spring and its infrastructure that you would like to see addressed?"
    :survey-button-label "Yes"}
@@ -137,7 +136,8 @@
 (defn- widget-body
   []
   (fn [{:keys [style survey? preview target description survey-button-label]}]
-    (let [padding 10]
+    (let [padding 10
+          {:keys [primary-color dark-primary-color]} (styles/theme)]
       [:div {:style (merge {:width (str "calc(100% - " (* 2 padding) "px)")
                             :background "#FFFFFF"
                             :padding padding} style)}
@@ -183,6 +183,43 @@
                           :font-size "12px"
                           :line-height "16px"}}
             description]]
+
+          ;; action buttons
+          [:div {:style {:display "flex"
+                         :justify-content "center"}}
+
+           ;; take survey button
+           [mui/flat-button
+            {:label survey-button-label
+             :label-style {:font-weight 700 :top -1
+                           :text-transform "none"}
+             :background-color primary-color
+             :hover-color dark-primary-color
+             :style {:min-width 50
+                     :border-radius 4}}]
+
+           ;; buffer
+           [:div {:style {:width 10 :height "100%"}}]
+
+           ;; read more button
+           [mui/flat-button
+            {:label (:label target)
+             :label-style {:color "rgb(100,100,100)"
+                           :font-weight 700
+                           :top -2
+                           :padding-left 4
+                           :padding-right 4
+                           :text-transform "none"}
+             :href (:href target)
+             :background-color "#FFFFFF"
+             :hover-color "rgb(200,200,200)"
+             :target "_none"
+             :style {:border-width "1px"
+                     :border-radius 4
+                     :border-color "rgb(200,200,200)"
+                     :border-style "solid"}}]
+
+           ]
 
           ]
 
@@ -251,37 +288,64 @@
                 {:keys [primary-color text-icons-color font-family font-weight]} (styles/theme)
                 height (state->height state)
                 width (state->width state)
-                tab-height 40
-                tab-width 100]
+                tab-height 25
+                tab-width 60]
 
 
             [mui/paper {:style {:position "fixed"
-                                :right 32 :bottom 32
+                                :right 8 :bottom 8
                                 :width width
                                 :max-height height
                                 :background "transparent"
                                 :color text-icons-color
                                 :font-family font-family
                                 :font-weight font-weight}
-                        :zDepth 3}
+                        :zDepth 0}
 
-             ;; tab
-             [widget-tab
-              {:style {:position "relative"
-                       :left (str "calc(100% - " tab-width "px)")
-                       :top 0
-                       :width tab-width
-                       :height tab-height}}]
+             ;; tabs
+             [:div {:style {:margin "0"
+                            :height tab-height}}
+
+              ;; tab
+              [:div {:style {:margin 0
+                             :padding 0
+                             :height tab-height
+                             :position "relative"
+                             :top 4
+                             :z-index 3}}
+               [widget-tab
+                {:style {:width tab-width
+                         :height tab-height
+                         :float "right"
+                         :-webkit-border-radius "8px 8px 0 0"
+                         :-moz-border-radius "8px 8px 0 0"
+                         :border-radius "8px 8px 0 0"
+                         :border-bottom 0
+                         :color "#000"
+                         :-webkit-box-shadow "rgba(0,0,0,0.50) 0 0px 4px"
+                         :-moz-box-shadow "rgba(0,0,0,0.50) 0 0px 4px"
+                         :box-shadow "rgba(0,0,0,0.50) 0 0px 4px"}}]]]
 
              ;; content
              [:div
               {:style {:max-height (- height tab-height)
                        :width width
-                       :position "relative"
                        :background primary-color
 
                        :display "flex"
-                       :flex-direction "column"}}
+                       :flex-direction "column"
+
+                       :position "relative"
+                       :z-index 4
+
+
+                       :clear "left"
+
+                       :-webkit-box-shadow "rgba(0,0,0,0.50) 0 4px 4px"
+                       :-moz-box-shadow "rgba(0,0,0,0.50) 0 4px 4px"
+                       :box-shadow "rgba(0,0,0,0.50) 0 4px 4px"
+
+                       }}
 
               ;; header
               [:div {:style {:height 40}}
@@ -301,9 +365,9 @@
                  :preview {:img-src "https://d4z6dx8qrln4r.cloudfront.net/image-f2014a7980f61d8471013003cfbeb78e-default.jpeg"
                            :img-caption "Wakefield Spring Redesign Wakefield, La Pêche, QC"}
                  :target {:href "https://milieu.io/en/wakefield"
-                          :label "READ MORE"}
+                          :label "Read More"}
                  :description "The Lorne Shouldice Spring (Wakefield Spring) is a treasured source of potable freshwater. Do you have any concerns about the Spring and its infrastructure that you would like to see addressed?"
-                 :survey-button-label "Yes"}]]]
+                 :survey-button-label "Take the Survey"}]]]
 
              ]
 
