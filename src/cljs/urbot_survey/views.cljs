@@ -29,9 +29,14 @@
     [mui/mui-theme-provider
      {:mui-theme (ui/get-mui-theme (styles/theme))}
      [widget-frame
-      {:target-url (:data-target-url data)
+      {:preview-img-src (:data-preview-img-src data)
+       :preview-img-caption (:data-preview-img-caption data)
+       :target-url (:data-target-url data)
        :target-label (:data-target-label data)
-       :survey-urls (:data-survey-urls data)}]]))
+       :survey-urls (:data-survey-urls data)
+       :survey-button-label (:data-survey-button-label data)
+       :minimized-label (:data-minimized-label data)
+       :description (:data-description data)}]]))
 
 ;;; Private
 
@@ -340,7 +345,14 @@
 
 (defn- widget-frame
   "state in #{:hidden :minimized :open :survey}"
-  [{:keys [target-url target-label survey-urls]}]
+  [{:keys [target-url
+           target-label
+           survey-urls
+           survey-button-label
+           minimized-label
+           description
+           preview-img-src
+           preview-img-caption]}]
   (let [survey-id (str (gensym))
         frame-id (str (gensym))
         survey (re-frame/subscribe [:surveys survey-id])
@@ -354,13 +366,13 @@
         (fn []
 
           (let [survey {:survey-urls survey-urls
-                        :preview {:img-src "https://d4z6dx8qrln4r.cloudfront.net/image-f2014a7980f61d8471013003cfbeb78e-default.jpeg"
-                                  :img-caption "Wakefield Spring Redesign Wakefield, La Pêche, QC"}
-                        :target {:href "https://milieu.io/en/wakefield"
-                                 :label "Read More"}
-                        :description "The Lorne Shouldice Spring (Wakefield Spring) is a treasured source of potable freshwater. Do you have any concerns about the Spring and its infrastructure that you would like to see addressed?"
-                        :survey-button-label "Take the Survey"
-                        :tab-label "New development near you"
+                        :preview {:img-src preview-img-src
+                                  :img-caption preview-img-caption}
+                        :target {:href target-url
+                                 :label target-label}
+                        :description description
+                        :survey-button-label survey-button-label
+                        :tab-label minimized-label
                         :state :hidden}]
 
             ;; dispatch initial survey data

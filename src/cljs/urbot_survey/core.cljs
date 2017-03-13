@@ -25,22 +25,25 @@
               {:width (.-innerWidth js/window)
                :height (.-innerHeight js/window)}])))
 
-    (let [completed-surveys-set (if debug?
-                                  #{}
-                                  @(re-frame/subscribe [:completed-surveys]))]
+    (let [completed-surveys-set @(re-frame/subscribe [:completed-surveys])]
       (doseq [element (array-seq (.getElementsByClassName js/document "urbot-survey"))]
-        (let [attrs (update-in (->> (array-seq (.-attributes element))
-                                    (map (fn [attr]
-                                           [(.-name attr)
-                                            (.-value attr)]))
-                                    (into {})
-                                    (map-keys ->keyword))
+        (let [attrs (->> (array-seq (.-attributes element))
+                         (map (fn [attr]
+                                [(.-name attr)
+                                 (.-value attr)]))
+                         (into {})
+                         (map-keys ->keyword))
+              allow-redo? (-> attrs :data-allow-redo (= "true"))
+              attrs (update-in attrs
                                [:data-survey-urls]
                                (fn [survey-urls]
                                  (->> survey-urls
                                       (.parse js/JSON)
                                       js->clj
-                                      (remove completed-surveys-set))))]
+                                      (remove
+                                       (if (or debug? allow-redo?)
+                                         #{}
+                                         completed-surveys-set)))))]
           (if (not-empty (:data-survey-urls attrs))
             (reagent/render
              [views/main-panel
