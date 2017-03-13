@@ -13,6 +13,8 @@
 
                  [tomthought/palette "0.1.2"]
 
+                 [alandipert/storage-atom "2.0.1"]
+
                  [com.7theta/utilis "0.8.3"]
                  [com.andrewmcveigh/cljs-time "0.4.0"]
                  [com.cemerick/url "0.1.1"]

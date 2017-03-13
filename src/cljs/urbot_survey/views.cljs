@@ -20,6 +20,8 @@
 
 (declare widget-frame)
 
+(def ^:private z-index-base 25000)
+
 ;;; Public
 
 (defn main-panel []
@@ -29,7 +31,7 @@
      [widget-frame
       {:target-url (:data-target-url data)
        :target-label (:data-target-label data)
-       :survey-urls (js->clj (.parse js/JSON (:data-survey-urls data)))}]]))
+       :survey-urls (:data-survey-urls data)}]]))
 
 ;;; Private
 
@@ -108,11 +110,11 @@
 
 (defn- widget-tab
   []
-  (fn [{:keys [style expand? on-click] :or {expand? true}}]
+  (fn [{:keys [style expand? on-click icon] :or {expand? true}}]
     (let [this (reagent/current-component)
           {:keys [hover?]} (reagent/state this)
           {:keys [primary-color text-icons-color]} (styles/theme)
-          icon-size (if hover? 30 20)]
+          icon-size (if hover? 23 18)]
       [:div {:style (merge {:background primary-color
                             :width 80 :height 35
                             :display "flex"
@@ -124,9 +126,10 @@
                          (reagent/set-state this {:hover? false})
                          (when (fn? on-click)
                            (on-click e)))}
-       [(if expand?
-          ico/navigation-expand-less
-          ico/navigation-expand-more)
+       [(or icon
+            (if expand?
+              ico/navigation-expand-less
+              ico/navigation-expand-more))
         {:style {:width icon-size
                  :height icon-size
                  :margin "auto"}
@@ -252,7 +255,8 @@
   []
   (fn []
     (let [this (reagent/current-component)
-          {:keys [style id on-tab-click width height tab-label tab-expand? body tab-width tab-height header-height]} (reagent/props this)
+          {:keys [style id on-tab-click width height tab-label tab-expand? body
+                  tab-width tab-height header-height tab-icon]} (reagent/props this)
           {:keys [text-icons-color font-family font-weight primary-color]} (styles/theme)]
       [mui/paper {:style (merge {:background "transparent"
                                  :color text-icons-color
@@ -262,8 +266,10 @@
                                  :width width
                                  :max-height height
 
+                                 :z-index z-index-base
+
                                  :transition "all 450ms cubic-bezier(0.23, 1, 0.32, 1) 0ms"
-                                 :transition-property "top, width, height, max-height"}
+                                 :transition-property "top, width, height, max-height, opacity"}
                                 style)
                   :zDepth 0
                   :id id}
@@ -282,6 +288,7 @@
          [widget-tab
           {:expand? tab-expand?
            :on-click on-tab-click
+           :icon tab-icon
            :style {:width tab-width
                    :height tab-height
                    :float "right"
@@ -336,7 +343,11 @@
   [{:keys [target-url target-label survey-urls]}]
   (let [survey-id (str (gensym))
         frame-id (str (gensym))
-        survey (re-frame/subscribe [:surveys survey-id])]
+        survey (re-frame/subscribe [:surveys survey-id])
+        show-typeform (re-frame/subscribe [:show-typeform])
+        window-size (re-frame/subscribe [:window-did-resize])
+
+        survey-url (rand-nth survey-urls)]
     (fn []
       (reagent/create-class
        {:component-will-mount
@@ -374,20 +385,38 @@
                 window-width (.-innerWidth js/window)
                 header-height 40
                 tab-width 50
-                tab-height 25]
+                tab-height 25
+                _ @window-size]
 
             (if (= state :hidden)
               [:div]
               [:div
 
-               [mui/paper {:style {:position "fixed"
-                                   :background "red"
-                                   :top (/ (* (.-innerHeight js/window) (- 1 survey-height-percentage)) 2)
-                                   :left (/ (- (.-innerWidth js/window)
-                                               (* (.-innerHeight js/window) survey-height-percentage)) 2)
-                                   :width (* (.-innerHeight js/window) survey-height-percentage)
-                                   :height (* (.-innerHeight js/window) survey-height-percentage)}}
-                [typeform {:href (rand-nth survey-urls)}]]
+               (let [height (max (* (.-innerHeight js/window) survey-height-percentage) 400)
+                     width height]
+                 [milieu-frame
+                  {:id (str frame-id "-typeform")
+                   :width width
+                   :height height
+                   :header-height header-height
+                   :tab-width tab-width
+                   :tab-height tab-height
+                   :tab-label (-> survey :preview :img-caption)
+                   :tab-expand? false
+                   :on-tab-click (fn [] (re-frame/dispatch [:show-typeform false]))
+                   :style {:position "fixed"
+                           :top (/ (- (.-innerHeight js/window) height) 2)
+                           :left (/ (- (.-innerWidth js/window) width) 2)
+                           :opacity (if @show-typeform 1.0 0.0)}
+                   :tab-icon ico/content-clear
+                   :body (if @show-typeform
+                           [:div {:style {:width "100%"
+                                          :height (- height
+                                                     tab-height
+                                                     header-height
+                                                     8)}}
+                            [typeform {:href survey-url}]]
+                           [:div])}])
 
                [milieu-frame
                 {:id frame-id
@@ -413,7 +442,7 @@
                                             :open :minimized
                                             state))]))
                  :style {:position "fixed"
-                         :right 8
+                         :right 4
                          :top (condp = state
                                 :minimized (- window-height
                                               tab-height
@@ -424,6 +453,13 @@
 
                  :body [widget-body
                         (merge {:survey? (= state :survey)
-                                :show-survey-fn (fn [] (re-frame/dispatch
-                                                       [:surveys survey-id
-                                                        (assoc survey :state :minimized)]))} survey)]}]])))}))))
+                                :show-survey-fn (fn []
+
+                                                  (re-frame/dispatch
+                                                   [:surveys survey-id
+                                                    (assoc survey :state :minimized)])
+
+                                                  (re-frame/dispatch [:completed-survey survey-url])
+
+                                                  (re-frame/dispatch
+                                                   [:show-typeform true]))} survey)]}]])))}))))
