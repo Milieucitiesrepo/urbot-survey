@@ -5,7 +5,8 @@
             [alandipert.storage-atom :refer [local-storage]]))
 
 (def ^:private completed-surveys
-  (local-storage (atom #{}) :completed-surveys))
+  (or (try (local-storage (atom #{}) :completed-surveys) (catch js/Error e nil))
+      (atom #{})))
 
 (reg-event-db
  :initialize-db
