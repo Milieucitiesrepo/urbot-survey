@@ -8,17 +8,22 @@
             [utilis.types.keyword :refer [->keyword]]
             [utilis.map :refer [map-keys]]))
 
+(defn- mobile?
+  []
+  (<= (.-innerWidth js/window) 800))
+
 (defn mount-roots []
-  (re-frame/clear-subscription-cache!)
-  (doseq [element (array-seq (.getElementsByClassName js/document "urbot-survey"))]
-    (reagent/render
-     [views/main-panel
-      {:data (->> (array-seq (.-attributes element))
-                  (map (fn [attr]
-                         [(.-name attr)
-                          (.-value attr)]))
-                  (into {})
-                  (map-keys ->keyword))}] element)))
+  (when-not (mobile?)
+    (re-frame/clear-subscription-cache!)
+    (doseq [element (array-seq (.getElementsByClassName js/document "urbot-survey"))]
+      (reagent/render
+       [views/main-panel
+        {:data (->> (array-seq (.-attributes element))
+                    (map (fn [attr]
+                           [(.-name attr)
+                            (.-value attr)]))
+                    (into {})
+                    (map-keys ->keyword))}] element))))
 
 (defn ^:export init []
   (re-frame/dispatch-sync [:initialize-db])

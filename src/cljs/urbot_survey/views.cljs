@@ -109,17 +109,27 @@
 
 (defn- widget-tab
   []
-  (fn [{:keys [style expand?] :or {expand? true}}]
-    (let [{:keys [primary-color text-icons-color]} (styles/theme)]
+  (fn [{:keys [style expand? on-click] :or {expand? true}}]
+    (let [this (reagent/current-component)
+          {:keys [hover?]} (reagent/state this)
+          {:keys [primary-color text-icons-color]} (styles/theme)
+          icon-size (if hover? 30 20)]
       [:div {:style (merge {:background primary-color
                             :width 80 :height 35
-                            :display "flex"}
-                           style)}
+                            :display "flex"
+                            :cursor "pointer"}
+                           style)
+             :onMouseOver (fn [] (reagent/set-state this {:hover? true}))
+             :onMouseOut (fn [] (reagent/set-state this {:hover? false}))
+             :on-click (fn [e]
+                         (reagent/set-state this {:hover? false})
+                         (when (fn? on-click)
+                           (on-click e)))}
        [(if expand?
           ico/navigation-expand-less
           ico/navigation-expand-more)
-        {:style {:width 20
-                 :height 20
+        {:style {:width icon-size
+                 :height icon-size
                  :margin "auto"}
          :color text-icons-color}]])))
 
@@ -135,11 +145,6 @@
                     :position "relative"
                     :top -1
                     :font-weight 700}} title]]))
-
-#_{:target {:href "https://milieu.io/en/wakefield"
-            :label "READ MORE"}
-   :description "The Lorne Shouldice Spring ( Wakefield Spring) is a treasured source of potable freshwater. Do you have any concerns about the Spring and its infrastructure that you would like to see addressed?"
-   :survey-button-label "Yes"}
 
 (defn- widget-body
   []
@@ -254,7 +259,7 @@
   [state]
   (condp = state
     :hidden 0
-    :minimized 100
+    :minimized 500
     :open 500
     :survey (fn []
 
@@ -269,6 +274,7 @@
   "state in #{:hidden :minimized :open}"
   [{:keys [target-url target-label survey-urls]}]
   (let [survey-id (str (gensym))
+        frame-id (str (gensym))
         survey (re-frame/subscribe [:surveys survey-id])]
     (fn []
       (reagent/create-class
@@ -287,98 +293,127 @@
             (go (<! (timeout 3 #_3000))
                 (re-frame/dispatch
                  [:surveys survey-id
-                  (assoc survey :state :open)])))
+                  (assoc survey :state :minimized)])))
 
           )
         :reagent-render
         (fn []
-          (let [{:keys [state target-label] :or {state :hidden} :as survey} @survey
+          (let [this (reagent/current-component)
+                {:keys [state target-label] :or {state :hidden} :as survey} @survey
                 {:keys [primary-color text-icons-color font-family font-weight]} (styles/theme)
                 height (state->height state)
                 width (state->width state)
+                {:keys [frame-height] :or {frame-height height}} (reagent/state this)
                 tab-height 25
-                tab-width 50]
+                tab-width 50
+
+                header-height 40
+
+                window-height (.-innerHeight js/window)
+                window-width (.-innerWidth js/window)]
+
+            (if (= state :hidden)
+              [:div]
+              [mui/paper {:style {:position "fixed"
+                                  :right 8
+                                  :top (condp = state
+                                         :minimized (- window-height
+                                                       tab-height
+                                                       header-height)
+                                         :open (- window-height frame-height 8)
+                                         :hidden 0
+                                         0)
+                                  :width width
+                                  :max-height height
+                                  :background "transparent"
+                                  :color text-icons-color
+                                  :font-family font-family
+                                  :font-weight font-weight}
+                          :zDepth 0
+                          :id frame-id}
+
+               ;; tabs
+               [:div {:style {:margin "0"
+                              :height tab-height}}
+
+                ;; tab
+                [:div {:style {:margin 0
+                               :padding 0
+                               :height tab-height
+                               :position "relative"
+                               :top 4
+                               :z-index 3}}
+                 [widget-tab
+                  {:expand? (= state :minimized)
+                   :on-click (fn []
+
+                               (let [rect (.getBoundingClientRect (.getElementById js/document frame-id))]
+                                 (reagent/set-state
+                                  this {:frame-height (.-height rect)}))
+
+                               (re-frame/dispatch
+                                [:surveys survey-id
+                                 (assoc survey :state
+                                        (condp = state
+                                          :minimized :open
+                                          :open :minimized
+                                          state))]))
+                   :style {:width tab-width
+                           :height tab-height
+                           :float "right"
+                           :-webkit-border-radius "8px 8px 0 0"
+                           :-moz-border-radius "8px 8px 0 0"
+                           :border-radius "8px 8px 0 0"
+                           :border-bottom 0
+                           :color "#000"
+                           :-webkit-box-shadow "rgba(0,0,0,0.50) 0 0px 4px"
+                           :-moz-box-shadow "rgba(0,0,0,0.50) 0 0px 4px"
+                           :box-shadow "rgba(0,0,0,0.50) 0 0px 4px"}}]]]
+
+               ;; content
+               [:div
+                {:style {:max-height (- height tab-height)
+                         :width width
+                         :background primary-color
+
+                         :display "flex"
+                         :flex-direction "column"
+
+                         :position "relative"
+                         :z-index 4
 
 
-            [mui/paper {:style {:position "fixed"
-                                :right 8 :bottom 8
-                                :width width
-                                :max-height height
-                                :background "transparent"
-                                :color text-icons-color
-                                :font-family font-family
-                                :font-weight font-weight}
-                        :zDepth 0}
+                         :clear "left"
 
-             ;; tabs
-             [:div {:style {:margin "0"
-                            :height tab-height}}
+                         :-webkit-box-shadow "rgba(0,0,0,0.50) 0 4px 4px"
+                         :-moz-box-shadow "rgba(0,0,0,0.50) 0 4px 4px"
+                         :box-shadow "rgba(0,0,0,0.50) 0 4px 4px"
 
-              ;; tab
-              [:div {:style {:margin 0
-                             :padding 0
-                             :height tab-height
-                             :position "relative"
-                             :top 4
-                             :z-index 3}}
-               [widget-tab
-                {:expand? (= state :minimize)
-                 :style {:width tab-width
-                         :height tab-height
-                         :float "right"
-                         :-webkit-border-radius "8px 8px 0 0"
-                         :-moz-border-radius "8px 8px 0 0"
-                         :border-radius "8px 8px 0 0"
-                         :border-bottom 0
-                         :color "#000"
-                         :-webkit-box-shadow "rgba(0,0,0,0.50) 0 0px 4px"
-                         :-moz-box-shadow "rgba(0,0,0,0.50) 0 0px 4px"
-                         :box-shadow "rgba(0,0,0,0.50) 0 0px 4px"}}]]]
+                         }}
 
-             ;; content
-             [:div
-              {:style {:max-height (- height tab-height)
-                       :width width
-                       :background primary-color
+                ;; header
+                [:div {:style {:height header-height}}
+                 [widget-header
+                  {:title target-label}]]
 
-                       :display "flex"
-                       :flex-direction "column"
+                ;; body
+                [:div {:style {:max-height "calc(100% - 8px)"
+                               :width "calc(100% - 8px)"
+                               :overflow-y "scroll"
+                               :background primary-color
+                               :padding-left 4
+                               :padding-right 4
+                               :padding-bottom 4}}
+                 [widget-body
+                  {:survey? (= state :survey)
+                   :preview {:img-src "https://d4z6dx8qrln4r.cloudfront.net/image-f2014a7980f61d8471013003cfbeb78e-default.jpeg"
+                             :img-caption "Wakefield Spring Redesign Wakefield, La Pêche, QC"}
+                   :target {:href "https://milieu.io/en/wakefield"
+                            :label "Read More"}
+                   :description "The Lorne Shouldice Spring (Wakefield Spring) is a treasured source of potable freshwater. Do you have any concerns about the Spring and its infrastructure that you would like to see addressed?"
+                   :survey-button-label "Take the Survey"}]]]
 
-                       :position "relative"
-                       :z-index 4
-
-
-                       :clear "left"
-
-                       :-webkit-box-shadow "rgba(0,0,0,0.50) 0 4px 4px"
-                       :-moz-box-shadow "rgba(0,0,0,0.50) 0 4px 4px"
-                       :box-shadow "rgba(0,0,0,0.50) 0 4px 4px"
-
-                       }}
-
-              ;; header
-              [:div {:style {:height 40}}
-               [widget-header
-                {:title target-label}]]
-
-              ;; body
-              [:div {:style {:max-height "calc(100% - 8px)"
-                             :width "calc(100% - 8px)"
-                             :overflow-y "scroll"
-                             :background primary-color
-                             :padding-left 4
-                             :padding-right 4
-                             :padding-bottom 4}}
-               [widget-body
-                {:survey? (= state :survey)
-                 :preview {:img-src "https://d4z6dx8qrln4r.cloudfront.net/image-f2014a7980f61d8471013003cfbeb78e-default.jpeg"
-                           :img-caption "Wakefield Spring Redesign Wakefield, La Pêche, QC"}
-                 :target {:href "https://milieu.io/en/wakefield"
-                          :label "Read More"}
-                 :description "The Lorne Shouldice Spring (Wakefield Spring) is a treasured source of potable freshwater. Do you have any concerns about the Spring and its infrastructure that you would like to see addressed?"
-                 :survey-button-label "Take the Survey"}]]]
-
-             ]
+               ])
 
             #_[mui/paper {:style {:position "fixed"
                                   :width width
