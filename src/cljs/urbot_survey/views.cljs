@@ -248,6 +248,89 @@
     :open 500
     0))
 
+(defn- milieu-frame
+  []
+  (fn []
+    (let [this (reagent/current-component)
+          {:keys [style id on-tab-click width height tab-label tab-expand? body tab-width tab-height header-height]} (reagent/props this)
+          {:keys [text-icons-color font-family font-weight primary-color]} (styles/theme)]
+      [mui/paper {:style (merge {:background "transparent"
+                                 :color text-icons-color
+                                 :font-family font-family
+                                 :font-weight font-weight
+
+                                 :width width
+                                 :max-height height
+
+                                 :transition "all 450ms cubic-bezier(0.23, 1, 0.32, 1) 0ms"
+                                 :transition-property "top, width, height, max-height"}
+                                style)
+                  :zDepth 0
+                  :id id}
+
+       ;; tabs
+       [:div {:style {:margin "0"
+                      :height tab-height}}
+
+        ;; tab
+        [:div {:style {:margin 0
+                       :padding 0
+                       :height tab-height
+                       :position "relative"
+                       :top 4
+                       :z-index 3}}
+         [widget-tab
+          {:expand? tab-expand?
+           :on-click on-tab-click
+           :style {:width tab-width
+                   :height tab-height
+                   :float "right"
+                   :-webkit-border-radius "8px 8px 0 0"
+                   :-moz-border-radius "8px 8px 0 0"
+                   :border-radius "8px 8px 0 0"
+                   :border-bottom 0
+                   :color "#000"
+                   :-webkit-box-shadow "rgba(0,0,0,0.50) 0 0px 4px"
+                   :-moz-box-shadow "rgba(0,0,0,0.50) 0 0px 4px"
+                   :box-shadow "rgba(0,0,0,0.50) 0 0px 4px"}}]]]
+
+       ;; content
+       [:div
+        {:style {:max-height (- height tab-height)
+                 :width width
+                 :background primary-color
+
+                 :display "flex"
+                 :flex-direction "column"
+
+                 :position "relative"
+                 :z-index 4
+
+
+                 :clear "left"
+
+                 :-webkit-box-shadow "rgba(0,0,0,0.50) 0 4px 4px"
+                 :-moz-box-shadow "rgba(0,0,0,0.50) 0 4px 4px"
+                 :box-shadow "rgba(0,0,0,0.50) 0 4px 4px"
+
+                 }}
+
+        ;; header
+        [:div {:style {:height header-height}}
+         [widget-header
+          {:title tab-label}]]
+
+        ;; body
+        [:div {:style (merge {:overflow-y "scroll"}
+                             {:max-height "calc(100% - 8px)"
+                              :width "calc(100% - 8px)"
+                              :background primary-color
+                              :padding-left 4
+                              :padding-right 4
+                              :padding-bottom 4})} body]]])
+
+    ))
+
 (defn- widget-frame
   "state in #{:hidden :minimized :open :survey}"
   [{:keys [target-url target-label survey-urls]}]
@@ -287,112 +370,60 @@
                 height (state->height state)
                 width (state->width state)
                 {:keys [open-frame-height] :or {open-frame-height height}} (reagent/state this)
-                tab-height 25
-                tab-width 50
-
-                header-height 40
-
                 window-height (.-innerHeight js/window)
-                window-width (.-innerWidth js/window)]
+                window-width (.-innerWidth js/window)
+                header-height 40
+                tab-width 50
+                tab-height 25]
 
             (if (= state :hidden)
               [:div]
-              [mui/paper {:style {:position "fixed"
-                                  :right 8
-                                  :top (condp = state
-                                         :minimized (- window-height
-                                                       tab-height
-                                                       header-height)
-                                         :open (- window-height open-frame-height 8)
-                                         :hidden 0
-                                         0)
-                                  :width width
-                                  :max-height height
-                                  :background "transparent"
-                                  :color text-icons-color
-                                  :font-family font-family
-                                  :font-weight font-weight
+              [:div
 
-                                  :transition "all 450ms cubic-bezier(0.23, 1, 0.32, 1) 0ms"
-                                  :transition-property "top, width, height, max-height"}
-                          :zDepth 0
-                          :id frame-id}
+               [mui/paper {:style {:position "fixed"
+                                   :background "red"
+                                   :top (/ (* (.-innerHeight js/window) (- 1 survey-height-percentage)) 2)
+                                   :left (/ (- (.-innerWidth js/window)
+                                               (* (.-innerHeight js/window) survey-height-percentage)) 2)
+                                   :width (* (.-innerHeight js/window) survey-height-percentage)
+                                   :height (* (.-innerHeight js/window) survey-height-percentage)}}
+                [typeform {:href (rand-nth survey-urls)}]]
 
-               ;; tabs
-               [:div {:style {:margin "0"
-                              :height tab-height}}
+               [milieu-frame
+                {:id frame-id
+                 :width width
+                 :height height
+                 :header-height header-height
+                 :tab-width tab-width
+                 :tab-height tab-height
+                 :tab-label tab-label
+                 :tab-expand? (= state :minimized)
+                 :on-tab-click (fn []
 
-                ;; tab
-                [:div {:style {:margin 0
-                               :padding 0
-                               :height tab-height
-                               :position "relative"
-                               :top 4
-                               :z-index 3}}
-                 [widget-tab
-                  {:expand? (= state :minimized)
-                   :on-click (fn []
+                                 (when (= state :minimized)
+                                   (let [rect (.getBoundingClientRect (.getElementById js/document frame-id))]
+                                     (reagent/set-state
+                                      this {:open-frame-height (.-height rect)})))
 
-                               (when (= state :minimized)
-                                 (let [rect (.getBoundingClientRect (.getElementById js/document frame-id))]
-                                   (reagent/set-state
-                                    this {:open-frame-height (.-height rect)})))
+                                 (re-frame/dispatch
+                                  [:surveys survey-id
+                                   (assoc survey :state
+                                          (condp = state
+                                            :minimized :open
+                                            :open :minimized
+                                            state))]))
+                 :style {:position "fixed"
+                         :right 8
+                         :top (condp = state
+                                :minimized (- window-height
+                                              tab-height
+                                              header-height)
+                                :open (- window-height open-frame-height 8)
+                                :hidden 0
+                                0)}
 
-                               (re-frame/dispatch
-                                [:surveys survey-id
-                                 (assoc survey :state
-                                        (condp = state
-                                          :minimized :open
-                                          :open :minimized
-                                          state))]))
-                   :style {:width tab-width
-                           :height tab-height
-                           :float "right"
-                           :-webkit-border-radius "8px 8px 0 0"
-                           :-moz-border-radius "8px 8px 0 0"
-                           :border-radius "8px 8px 0 0"
-                           :border-bottom 0
-                           :color "#000"
-                           :-webkit-box-shadow "rgba(0,0,0,0.50) 0 0px 4px"
-                           :-moz-box-shadow "rgba(0,0,0,0.50) 0 0px 4px"
-                           :box-shadow "rgba(0,0,0,0.50) 0 0px 4px"}}]]]
-
-               ;; content
-               [:div
-                {:style {:max-height (- height tab-height)
-                         :width width
-                         :background primary-color
-
-                         :display "flex"
-                         :flex-direction "column"
-
-                         :position "relative"
-                         :z-index 4
-
-
-                         :clear "left"
-
-                         :-webkit-box-shadow "rgba(0,0,0,0.50) 0 4px 4px"
-                         :-moz-box-shadow "rgba(0,0,0,0.50) 0 4px 4px"
-                         :box-shadow "rgba(0,0,0,0.50) 0 4px 4px"
-
-                         }}
-
-                ;; header
-                [:div {:style {:height header-height}}
-                 [widget-header
-                  {:title tab-label}]]
-
-                ;; body
-                [:div {:style (merge {:overflow-y "scroll"}
-                                     {:max-height "calc(100% - 8px)"
-                                      :width "calc(100% - 8px)"
-                                      :background primary-color
-                                      :padding-left 4
-                                      :padding-right 4
-                                      :padding-bottom 4})}
-                 [widget-body
-                  (merge {:survey? (= state :survey)
-                          :show-survey-fn (fn [] (re-frame/dispatch
-                                                 [:surveys survey-id
-                                                  (assoc survey :state :minimized)]))} survey)]]]])))}))))
+                 :body [widget-body
+                        (merge {:survey? (= state :survey)
+                                :show-survey-fn (fn [] (re-frame/dispatch
+                                                       [:surveys survey-id
+                                                        (assoc survey :state :minimized)]))} survey)]}]])))}))))
