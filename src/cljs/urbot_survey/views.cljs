@@ -70,8 +70,7 @@
 (defn- typeform
   [{:keys [href]}]
   (fn []
-    [:div {:style {:width "100%"
-                   :height "100%"}}
+    [:div {:style {:width "100%" :height "100%"}}
      [:iframe {:id "typeform-widget-body"
                :src href
                :display "inline-block"
@@ -148,97 +147,90 @@
 
 (defn- widget-body
   []
-  (fn [{:keys [style survey? preview target description survey-button-label]}]
+  (fn [{:keys [style preview target description survey-button-label show-survey-fn survey-urls]}]
     (let [padding 10
           {:keys [primary-color dark-primary-color]} (styles/theme)]
       [:div {:style (merge {:width (str "calc(100% - " (* 2 padding) "px)")
                             :background "#FFFFFF"
-                            :padding padding} style)}
+                            :padding padding}
+                           style)}
 
-       (if survey?
+       [:div {:style {:width "100%"}}
 
-         ;; show typeform survey in the widget body
-         [:div {:style {:width "100%"
-                        :height 600
-                        :background "red"}}]
+        ;; preview image
+        [:div {:style {:display "inline-block"
+                       :position "relative"}}
+         [:img {:src (:img-src preview)
+                :width "100%"
+                :height "auto"}]
+         [:div {:style {:position "absolute"
+                        :top 0 :left 0
+                        :width "calc(100% - 50px)"
+                        :height "calc(100% - 54px)"
+                        :background "rgba(0,0,0,0.40)"
+                        :display "flex"
+                        :padding 25}}
+          [:div {:style {:margin "auto"
+                         :text-align "center"
+                         :font-size 16
+                         :font-weight 700
+                         :line-height "22px"}}
+           (:img-caption preview)]]]
 
+        ;; description text
+        [:div {:style {:width "calc(100% - 16px)"
+                       :display "flex"
+                       :padding 8}}
+         [:div {:style {:margin "auto"
+                        :text-align "left"
+                        :color "rgb(100,100,100)"
+                        :font-size "12px"
+                        :line-height "16px"}}
+          description]]
 
-         ;; show the preview data in the widget body
-         [:div {:style {:width "100%"}}
+        ;; action buttons
+        [:div {:style {:display "flex"
+                       :justify-content "center"}}
 
-          ;; preview image
-          [:div {:style {:display "inline-block"
-                         :position "relative"}}
-           [:img {:src (:img-src preview)
-                  :width "100%"
-                  :height "auto"}]
-           [:div {:style {:position "absolute"
-                          :top 0 :left 0
-                          :width "calc(100% - 50px)"
-                          :height "calc(100% - 54px)"
-                          :background "rgba(0,0,0,0.40)"
-                          :display "flex"
-                          :padding 25}}
-            [:div {:style {:margin "auto"
-                           :text-align "center"
-                           :font-size 16
-                           :font-weight 700
-                           :line-height "22px"}}
-             (:img-caption preview)]]]
+         ;; take survey button
+         [mui/flat-button
+          {:label survey-button-label
+           :label-style {:font-weight 700 :top -1
+                         :text-transform "none"}
+           :background-color primary-color
+           :hover-color dark-primary-color
+           :style {:min-width 50
+                   :border-radius 4}
+           :onTouchTap (fn [] (show-survey-fn))}]
 
-          ;; description text
-          [:div {:style {:width "calc(100% - 16px)"
-                         :display "flex"
-                         :padding 8}}
-           [:div {:style {:margin "auto"
-                          :text-align "left"
-                          :color "rgb(100,100,100)"
-                          :font-size "12px"
-                          :line-height "16px"}}
-            description]]
+         ;; buffer
+         [:div {:style {:width 10 :height "100%"}}]
 
-          ;; action buttons
-          [:div {:style {:display "flex"
-                         :justify-content "center"}}
+         ;; read more button
+         [mui/flat-button
+          {:label (:label target)
+           :label-style {:color "rgb(100,100,100)"
+                         :font-weight 700
+                         :top -2
+                         :padding-left 4
+                         :padding-right 4
+                         :text-transform "none"}
+           :href (:href target)
+           :background-color "#FFFFFF"
+           :hover-color "rgb(200,200,200)"
+           :target "_none"
+           :style {:border-width "1px"
+                   :border-radius 4
+                   :border-color "rgb(200,200,200)"
+                   :border-style "solid"}}]
 
-           ;; take survey button
-           [mui/flat-button
-            {:label survey-button-label
-             :label-style {:font-weight 700 :top -1
-                           :text-transform "none"}
-             :background-color primary-color
-             :hover-color dark-primary-color
-             :style {:min-width 50
-                     :border-radius 4}}]
+         ]
 
-           ;; buffer
-           [:div {:style {:width 10 :height "100%"}}]
-
-           ;; read more button
-           [mui/flat-button
-            {:label (:label target)
-             :label-style {:color "rgb(100,100,100)"
-                           :font-weight 700
-                           :top -2
-                           :padding-left 4
-                           :padding-right 4
-                           :text-transform "none"}
-             :href (:href target)
-             :background-color "#FFFFFF"
-             :hover-color "rgb(200,200,200)"
-             :target "_none"
-             :style {:border-width "1px"
-                     :border-radius 4
-                     :border-color "rgb(200,200,200)"
-                     :border-style "solid"}}]
-
-           ]
-
-          ]
-
-         )
+        ]
 
        ])))
+
+(def ^:private survey-height-percentage 0.80)
 
 (defn- state->width
   [state]
@@ -246,13 +238,6 @@
     :hidden 300
     :minimized 300
     :open 300
-    :survey (fn []
-
-              ::calculate-height-here
-
-              800
-
-              )
     0))
 
 (defn- state->height
@@ -261,17 +246,10 @@
     :hidden 0
     :minimized 500
     :open 500
-    :survey (fn []
-
-              ::calculate-width-here
-
-              800
-
-              )
     0))
 
 (defn- widget-frame
-  "state in #{:hidden :minimized :open}"
+  "state in #{:hidden :minimized :open :survey}"
   [{:keys [target-url target-label survey-urls]}]
   (let [survey-id (str (gensym))
         frame-id (str (gensym))
@@ -281,9 +259,14 @@
        {:component-will-mount
         (fn []
 
-          (let [survey {:target-url target-url
-                        :target-label target-label
-                        :survey-urls survey-urls
+          (let [survey {:survey-urls survey-urls
+                        :preview {:img-src "https://d4z6dx8qrln4r.cloudfront.net/image-f2014a7980f61d8471013003cfbeb78e-default.jpeg"
+                                  :img-caption "Wakefield Spring Redesign Wakefield, La Pêche, QC"}
+                        :target {:href "https://milieu.io/en/wakefield"
+                                 :label "Read More"}
+                        :description "The Lorne Shouldice Spring (Wakefield Spring) is a treasured source of potable freshwater. Do you have any concerns about the Spring and its infrastructure that you would like to see addressed?"
+                        :survey-button-label "Take the Survey"
+                        :tab-label "New development near you"
                         :state :hidden}]
 
             ;; dispatch initial survey data
@@ -299,11 +282,11 @@
         :reagent-render
         (fn []
           (let [this (reagent/current-component)
-                {:keys [state target-label] :or {state :hidden} :as survey} @survey
+                {:keys [state survey-urls tab-label] :or {state :hidden} :as survey} @survey
                 {:keys [primary-color text-icons-color font-family font-weight]} (styles/theme)
                 height (state->height state)
                 width (state->width state)
-                {:keys [frame-height] :or {frame-height height}} (reagent/state this)
+                {:keys [open-frame-height] :or {open-frame-height height}} (reagent/state this)
                 tab-height 25
                 tab-width 50
 
@@ -320,7 +303,7 @@
                                          :minimized (- window-height
                                                        tab-height
                                                        header-height)
-                                         :open (- window-height frame-height 8)
+                                         :open (- window-height open-frame-height 8)
                                          :hidden 0
                                          0)
                                   :width width
@@ -328,7 +311,10 @@
                                   :background "transparent"
                                   :color text-icons-color
                                   :font-family font-family
-                                  :font-weight font-weight}
+                                  :font-weight font-weight
+
+                                  :transition "all 450ms cubic-bezier(0.23, 1, 0.32, 1) 0ms"
+                                  :transition-property "top, width, height, max-height"}
                           :zDepth 0
                           :id frame-id}
 
@@ -347,9 +333,10 @@
                   {:expand? (= state :minimized)
                    :on-click (fn []
 
-                               (let [rect (.getBoundingClientRect (.getElementById js/document frame-id))]
-                                 (reagent/set-state
-                                  this {:frame-height (.-height rect)}))
+                               (when (= state :minimized)
+                                 (let [rect (.getBoundingClientRect (.getElementById js/document frame-id))]
+                                   (reagent/set-state
+                                    this {:open-frame-height (.-height rect)})))
 
                                (re-frame/dispatch
                                 [:surveys survey-id
@@ -394,76 +381,18 @@
                 ;; header
                 [:div {:style {:height header-height}}
                  [widget-header
-                  {:title target-label}]]
+                  {:title tab-label}]]
 
                 ;; body
-                [:div {:style {:max-height "calc(100% - 8px)"
-                               :width "calc(100% - 8px)"
-                               :overflow-y "scroll"
-                               :background primary-color
-                               :padding-left 4
-                               :padding-right 4
-                               :padding-bottom 4}}
+                [:div {:style (merge {:overflow-y "scroll"}
+                                     {:max-height "calc(100% - 8px)"
+                                      :width "calc(100% - 8px)"
+                                      :background primary-color
+                                      :padding-left 4
+                                      :padding-right 4
+                                      :padding-bottom 4})}
                  [widget-body
-                  {:survey? (= state :survey)
-                   :preview {:img-src "https://d4z6dx8qrln4r.cloudfront.net/image-f2014a7980f61d8471013003cfbeb78e-default.jpeg"
-                             :img-caption "Wakefield Spring Redesign Wakefield, La Pêche, QC"}
-                   :target {:href "https://milieu.io/en/wakefield"
-                            :label "Read More"}
-                   :description "The Lorne Shouldice Spring (Wakefield Spring) is a treasured source of potable freshwater. Do you have any concerns about the Spring and its infrastructure that you would like to see addressed?"
-                   :survey-button-label "Take the Survey"}]]]
-
-               ])
-
-            #_[mui/paper {:style {:position "fixed"
-                                  :width width
-                                  :height height
-                                  :max-height height
-                                  :bottom 32
-                                  :right 32
-                                  :background (condp = state
-                                                :open "#FAFAFA"
-                                                :minimized background
-                                                "#FAFAFA")}
-                          :rounded false
-                          :zDepth 3}
-               (condp = state
-
-                 :open
-                 [:div {:style {:width "100%"
-                                :height "100%"}}
-                  [survey-header {:survey-id survey-id}]
-                  [survey-body {:survey-id survey-id}]]
-
-                 :minimized
-                 [mui/flat-button
-                  {:label (reagent/as-element
-                           [:div {:style {:text-align "center"
-                                          :width "calc(100% - 32px)"
-                                          :height "100%"
-                                          :padding-left 16
-                                          :margin-bottom 16
-                                          :position "relative"
-                                          :bottom 18}} target-label])
-                   :hoverColor (palette/darken background)
-                   :style {:width "100%"
-                           :height "100%"
-                           :min-width width
-                           :max-width width
-                           :min-height height
-                           :max-height height
-                           :margin 0
-                           :padding-left 0
-                           :padding-right 0
-                           :border-radius 0}
-                   :onTouchTap (fn [_] (re-frame/dispatch
-                                       [:surveys survey-id
-                                        (assoc
-                                         survey :state
-                                         (condp = state
-                                           :hidden :minimized
-                                           :minimized :open
-                                           :open :minimized
-                                           :hidden))]))}]
-
-                 [:div])]))}))))
+                  (merge {:survey? (= state :survey)
+                          :show-survey-fn (fn [] (re-frame/dispatch
+                                                 [:surveys survey-id
+                                                  (assoc survey :state :minimized)]))} survey)]]]])))}))))
