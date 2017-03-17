@@ -131,3 +131,5 @@ images/*
 dashboard-ui/figwheel_server.log
 
 /*/compiled*
+
+resources/public.zip
