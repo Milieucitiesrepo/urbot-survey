@@ -9,6 +9,8 @@
             [urbot-survey.styles :as styles]
             [urbot-survey.inputs :as inputs]
 
+            [utilis.types.number :refer [string->long]]
+
             [loom.graph :as loom]
 
             [palette.core :as palette]
@@ -36,7 +38,10 @@
        :survey-urls (:data-survey-urls data)
        :survey-button-label (:data-survey-button-label data)
        :minimized-label (:data-minimized-label data)
-       :description (:data-description data)}]]))
+       :description (:data-description data)
+       :appear-after-ms (let [x (:data-appear-after-ms data)]
+                          (when (and (string? x) (not-empty x))
+                            (string->long x)))}]]))
 
 ;;; Private
 
@@ -352,7 +357,8 @@
            minimized-label
            description
            preview-img-src
-           preview-img-caption]}]
+           preview-img-caption
+           appear-after-ms]}]
   (let [survey-id (str (gensym))
         frame-id (str (gensym))
         survey (re-frame/subscribe [:surveys survey-id])
@@ -379,7 +385,7 @@
             (re-frame/dispatch [:surveys survey-id survey])
 
             ;; move survey to minimized after 3 seconds
-            (go (<! (timeout 3 #_3000))
+            (go (<! (timeout (or appear-after-ms 3000)))
                 (re-frame/dispatch
                  [:surveys survey-id
                   (assoc survey :state :minimized)])))
@@ -400,70 +406,72 @@
                 tab-height 25
                 _ @window-size]
 
-            (if (= state :hidden)
-              [:div]
-              [:div
+            [:div
 
-               (let [height (max (* (.-innerHeight js/window) survey-height-percentage) 400)
-                     width height]
-                 [milieu-frame
-                  {:id (str frame-id "-typeform")
-                   :width width
-                   :height height
-                   :header-height header-height
-                   :tab-width tab-width
-                   :tab-height tab-height
-                   :tab-label (-> survey :preview :img-caption)
-                   :tab-expand? false
-                   :on-tab-click (fn [] (re-frame/dispatch [:show-typeform false]))
-                   :style {:position "fixed"
-                           :top (/ (- (.-innerHeight js/window) height) 2)
-                           :left (/ (- (.-innerWidth js/window) width) 2)
-                           :opacity (if @show-typeform 1.0 0.0)}
-                   :tab-icon ico/content-clear
-                   :body (if @show-typeform
-                           [:div {:style {:width "100%"
-                                          :height (- height
-                                                     tab-height
-                                                     header-height
-                                                     8)}}
-                            [typeform {:href survey-url}]]
-                           [:div])}])
-
+             ;; typeform survey
+             (let [height (max (* (.-innerHeight js/window) survey-height-percentage) 400)
+                   width height]
                [milieu-frame
-                {:id frame-id
+                {:id (str frame-id "-typeform")
                  :width width
                  :height height
                  :header-height header-height
                  :tab-width tab-width
                  :tab-height tab-height
-                 :tab-label tab-label
-                 :tab-expand? (= state :minimized)
-                 :on-tab-click (fn []
-
-                                 (when (= state :minimized)
-                                   (let [rect (.getBoundingClientRect (.getElementById js/document frame-id))]
-                                     (reagent/set-state
-                                      this {:open-frame-height (.-height rect)})))
-
-                                 (re-frame/dispatch
-                                  [:surveys survey-id
-                                   (assoc survey :state
-                                          (condp = state
-                                            :minimized :open
-                                            :open :minimized
-                                            state))]))
+                 :tab-label (-> survey :preview :img-caption)
+                 :tab-expand? false
+                 :on-tab-click (fn [] (re-frame/dispatch [:show-typeform false]))
                  :style {:position "fixed"
-                         :right 4
-                         :top (condp = state
-                                :minimized (- window-height
-                                              tab-height
-                                              header-height)
-                                :open (- window-height open-frame-height 8)
-                                :hidden 0
-                                0)}
+                         :top (/ (- (.-innerHeight js/window) height) 2)
+                         :left (/ (- (.-innerWidth js/window) width) 2)
+                         :opacity (if @show-typeform 1.0 0.0)}
+                 :tab-icon ico/content-clear
+                 :body (if @show-typeform
+                         [:div {:style {:width "100%"
+                                        :height (- height
+                                                   tab-height
+                                                   header-height
+                                                   8)}}
+                          [typeform {:href survey-url}]]
+                         [:div])}])
 
-                 :body [widget-body
+             ;; milieu tab
+             [milieu-frame
+              {:id frame-id
+               :width width
+               :height height
+               :header-height header-height
+               :tab-width tab-width
+               :tab-height tab-height
+               :tab-label tab-label
+               :tab-expand? (= state :minimized)
+               :on-tab-click (fn []
+
+                               (when (= state :minimized)
+                                 (let [rect (.getBoundingClientRect (.getElementById js/document frame-id))]
+                                   (reagent/set-state
+                                    this {:open-frame-height (.-height rect)})))
+
+                               (re-frame/dispatch
+                                [:surveys survey-id
+                                 (assoc survey :state
+                                        (condp = state
+                                          :minimized :open
+                                          :open :minimized
+                                          state))]))
+               :style {:position "fixed"
+                       :right "15%"
+                       :top (condp = state
+                              :minimized (- window-height
+                                            tab-height
+                                            header-height)
+                              :open (- window-height open-frame-height 8)
+                              :hidden window-height
+                              window-height)}
+
+               :body (if (= state :hidden)
+                       [:div]
+                       [widget-body
                         (merge {:survey? (= state :survey)
                                 :show-survey-fn (fn []
 
@@ -474,4 +482,4 @@
                                                   (re-frame/dispatch [:completed-survey survey-url])
 
                                                   (re-frame/dispatch
-                                                   [:show-typeform true]))} survey)]}]])))}))))
+                                                   [:show-typeform true]))} survey)])}]]))}))))
