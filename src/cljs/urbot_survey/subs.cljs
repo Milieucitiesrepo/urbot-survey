@@ -18,6 +18,11 @@
    (:window-size db)))
 
 (reg-sub
+ :window-did-scroll
+ (fn [db]
+   (:window-offset db)))
+
+(reg-sub
  :completed-surveys
  (fn [db]
    (:completed-surveys db)))

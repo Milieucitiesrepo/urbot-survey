@@ -80,9 +80,10 @@
           target-label]]))))
 
 (defn- typeform
-  [{:keys [href]}]
+  [{:keys [href style]}]
   (fn []
-    [:div {:style {:width "100%" :height "100%"}}
+    [:div {:style (merge {:width "100%"
+                          :height "100%"} style)}
      [:iframe {:id "typeform-widget-body"
                :src href
                :display "inline-block"
@@ -147,11 +148,13 @@
 
 (defn- widget-header
   []
-  (fn [{:keys [title style]}]
+  (fn [{:keys [title style on-click]}]
     [:div {:style (merge {:width "calc(100% - 16px)"
                           :height "calc(100% - 16px)"
                           :padding 8
-                          :display "flex"} style)}
+                          :display "flex"
+                          :cursor "pointer"} style)
+           :onClick (fn [] (when (fn? on-click) (on-click)))}
      [:div {:style {:text-align "center"
                     :margin "auto"
                     :position "relative"
@@ -172,7 +175,8 @@
 
         ;; preview image
         [:div {:style {:display "inline-block"
-                       :position "relative"}}
+                       :position "relative"
+                       :min-height 100}}
          [:img {:src (:img-src preview)
                 :width "100%"
                 :height "auto"}]
@@ -247,11 +251,11 @@
 
 (defn- state->width
   [state]
-  (condp = state
-    :hidden 300
-    :minimized 300
-    :open 300
-    0))
+  (if @(re-frame/subscribe [:show-typeform])
+    400 ;; typeform width
+    300 ;; normal width
+
+    ))
 
 (defn- state->height
   [state]
@@ -267,7 +271,8 @@
     (let [this (reagent/current-component)
           {:keys [style id on-tab-click width height tab-label tab-expand? body
                   tab-width tab-height header-height tab-icon]} (reagent/props this)
-          {:keys [text-icons-color font-family font-weight primary-color]} (styles/theme)]
+          {:keys [text-icons-color font-family font-weight primary-color]} (styles/theme)
+          children (reagent/children this)]
       [mui/paper {:style (merge {:background "transparent"
                                  :color text-icons-color
                                  :font-family font-family
@@ -335,7 +340,8 @@
         ;; header
         [:div {:style {:height header-height}}
          [widget-header
-          {:title tab-label}]]
+          {:on-click on-tab-click
+           :title tab-label}]]
 
         ;; body
         [:div {:style (merge {:overflow-y "scroll"}
@@ -344,7 +350,7 @@
                               :background primary-color
                               :padding-left 4
                               :padding-right 4
-                              :padding-bottom 4})} body]]])
+                              :padding-bottom 4})} (first children)]]])
 
     ))
 
@@ -385,7 +391,7 @@
             (re-frame/dispatch [:surveys survey-id survey])
 
             ;; move survey to minimized after 3 seconds
-            (go (<! (timeout (or appear-after-ms 3000)))
+            (go (<! (timeout 0 #_(or appear-after-ms 3000)))
                 (re-frame/dispatch
                  [:surveys survey-id
                   (assoc survey :state :minimized)])))
@@ -399,87 +405,76 @@
                 height (state->height state)
                 width (state->width state)
                 {:keys [open-frame-height] :or {open-frame-height height}} (reagent/state this)
-                window-height (.-innerHeight js/window)
-                window-width (.-innerWidth js/window)
+                window-size @window-size
+                window-height (:height window-size)
+                window-width (:width window-size)
                 header-height 40
                 tab-width 50
                 tab-height 25
-                _ @window-size]
 
-            [:div
+                typeform-height (- open-frame-height tab-height header-height 8)]
 
-             ;; typeform survey
-             (let [height (max (* (.-innerHeight js/window) survey-height-percentage) 400)
-                   width height]
+            (if (not-empty window-size)
+              [:div
+
+               ;; milieu tab
                [milieu-frame
-                {:id (str frame-id "-typeform")
+                {:id frame-id
                  :width width
                  :height height
                  :header-height header-height
                  :tab-width tab-width
                  :tab-height tab-height
-                 :tab-label (-> survey :preview :img-caption)
-                 :tab-expand? false
-                 :on-tab-click (fn [] (re-frame/dispatch [:show-typeform false]))
+                 :tab-label tab-label
+                 :tab-expand? (= state :minimized)
+                 :on-tab-click (fn []
+
+                                 (when (= state :minimized)
+                                   (let [rect (.getBoundingClientRect (.getElementById js/document frame-id))]
+                                     (reagent/set-state
+                                      this {:open-frame-height (.-height rect)})))
+
+                                 (re-frame/dispatch
+                                  [:surveys survey-id
+                                   (assoc survey :state
+                                          (condp = state
+                                            :minimized :open
+                                            :open :minimized
+                                            state))]))
                  :style {:position "fixed"
-                         :top (/ (- (.-innerHeight js/window) height) 2)
-                         :left (/ (- (.-innerWidth js/window) width) 2)
-                         :opacity (if @show-typeform 1.0 0.0)}
-                 :tab-icon ico/content-clear
-                 :body (if @show-typeform
-                         [:div {:style {:width "100%"
-                                        :height (- height
-                                                   tab-height
-                                                   header-height
-                                                   8)}}
-                          [typeform {:href survey-url}]]
-                         [:div])}])
+                         :right (* window-width 0.15)
+                         :top (condp = state
+                                :minimized (- window-height
+                                              tab-height
+                                              header-height)
+                                :open (if @show-typeform
+                                        (- window-height
+                                           (+ typeform-height
+                                              tab-height
+                                              header-height 12))
+                                        (- window-height
+                                           open-frame-height
+                                           8))
+                                :hidden window-height
+                                window-height)}}
+                (condp = state
+                  :hidden [:div]
 
-             ;; milieu tab
-             [milieu-frame
-              {:id frame-id
-               :width width
-               :height height
-               :header-height header-height
-               :tab-width tab-width
-               :tab-height tab-height
-               :tab-label tab-label
-               :tab-expand? (= state :minimized)
-               :on-tab-click (fn []
+                  (if @show-typeform
 
-                               (when (= state :minimized)
-                                 (let [rect (.getBoundingClientRect (.getElementById js/document frame-id))]
-                                   (reagent/set-state
-                                    this {:open-frame-height (.-height rect)})))
+                    [typeform {:href survey-url
+                               :style {:height typeform-height}}]
 
-                               (re-frame/dispatch
-                                [:surveys survey-id
-                                 (assoc survey :state
-                                        (condp = state
-                                          :minimized :open
-                                          :open :minimized
-                                          state))]))
-               :style {:position "fixed"
-                       :right "15%"
-                       :top (condp = state
-                              :minimized (- window-height
-                                            tab-height
-                                            header-height)
-                              :open (- window-height open-frame-height 8)
-                              :hidden window-height
-                              window-height)}
+                    [widget-body
+                     (merge {:survey? (= state :survey)
+                             :show-survey-fn (fn []
+                                               (re-frame/dispatch [:completed-survey survey-url])
+                                               (re-frame/dispatch [:show-typeform true]))}
+                            survey)]))]]
+              [:div])))}))))
 
-               :body (if (= state :hidden)
-                       [:div]
-                       [widget-body
-                        (merge {:survey? (= state :survey)
-                                :show-survey-fn (fn []
-
-                                                  (re-frame/dispatch
-                                                   [:surveys survey-id
-                                                    (assoc survey :state :minimized)])
-
-                                                  (re-frame/dispatch [:completed-survey survey-url])
-
-                                                  (re-frame/dispatch
-                                                   [:show-typeform true]))} survey)])}]]))}))))
+;; TODO
+;; - detect mobile, and expand to full screen
+;; - Full bar on bottom with yes/no big buttons (configurable)
+;; - only appear on mobile after scrolling down a bit (configurable)
+;; - appear after 3 seconds if no scrolling has happened

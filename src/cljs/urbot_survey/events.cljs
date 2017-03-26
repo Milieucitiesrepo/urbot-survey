@@ -29,6 +29,11 @@
    (assoc db :window-size window-size)))
 
 (reg-event-db
+ :window-did-scroll
+ (fn [db [_ window-offset]]
+   (assoc db :window-offset window-offset)))
+
+(reg-event-db
  :completed-survey
  (fn [db [_ id]]
    (swap! completed-surveys conj id)
