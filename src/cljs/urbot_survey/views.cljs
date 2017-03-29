@@ -264,7 +264,6 @@
                           :top 0 :left 0
                           :width "calc(100% - 50px)"
                           :height "calc(100% - 54px)"
-                          :background "rgba(0,0,0,0.40)"
                           :display "flex"
                           :padding 25}}
             [:div {:style {:margin "auto"
