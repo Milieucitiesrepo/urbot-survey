@@ -23,6 +23,7 @@
 (declare widget-frame)
 
 (def ^:private z-index-base 25000)
+(def ^:private mobile-desc-max-chars 140)
 
 ;;; Public
 
@@ -31,7 +32,8 @@
     [mui/mui-theme-provider
      {:mui-theme (ui/get-mui-theme (styles/theme))}
      [widget-frame
-      {:mobile-description (:data-mobile-description data)
+      {:mobile-description (when-let [desc (not-empty (:data-mobile-description data))]
+                             (apply str (take mobile-desc-max-chars desc)))
        :mobile-title (:data-mobile-title data)
        :preview-img-src (:data-preview-img-src data)
        :preview-img-caption (:data-preview-img-caption data)
@@ -490,7 +492,7 @@
                           :rounded false}
 
                [:div {:style {:width "100%"
-                              :height 140
+                              :height 160
                               :position "relative"
                               :background (if @show-typeform
                                             primary-color
