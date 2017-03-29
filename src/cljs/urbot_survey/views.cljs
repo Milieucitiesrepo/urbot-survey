@@ -23,6 +23,7 @@
 (declare widget-frame)
 
 (def ^:private z-index-base 25000)
+(def ^:private mobile-desc-max-chars 140)
 
 ;;; Public
 
@@ -31,7 +32,10 @@
     [mui/mui-theme-provider
      {:mui-theme (ui/get-mui-theme (styles/theme))}
      [widget-frame
-      {:preview-img-src (:data-preview-img-src data)
+      {:mobile-description (when-let [desc (not-empty (:data-mobile-description data))]
+                             (apply str (take mobile-desc-max-chars desc)))
+       :mobile-title (:data-mobile-title data)
+       :preview-img-src (:data-preview-img-src data)
        :preview-img-caption (:data-preview-img-caption data)
        :target-url (:data-target-url data)
        :target-label (:data-target-label data)
@@ -80,43 +84,16 @@
           target-label]]))))
 
 (defn- typeform
-  [{:keys [href]}]
+  [{:keys [href style]}]
   (fn []
-    [:div {:style {:width "100%" :height "100%"}}
+    [:div {:style (merge {:width "100%"
+                          :height "100%"} style)}
      [:iframe {:id "typeform-widget-body"
                :src href
                :display "inline-block"
                :width "100%"
                :height "100%"
                :style {:border-width 0}}]]))
-
-(defn survey-body
-  [{:keys [survey-id]}]
-  (let [survey (re-frame/subscribe [:surveys survey-id])
-        background "#92C7C6"]
-    (fn []
-      (reagent/create-class
-       {:component-did-mount
-        (fn [this]
-          (go (<! (timeout 450))
-              (reagent/set-state this {:render? true})))
-        :reagent-render
-        (fn []
-          (let [this (reagent/current-component)
-                {:keys [render?]} (reagent/state this)
-                {:keys [survey-urls]} @survey]
-            [mui/paper {:zDepth 0
-                        :rounded false
-                        :style {:width "100%"
-                                :height "100%"
-                                :min-height 400
-                                :max-height 400
-                                :display "flex"
-                                :flex-direction "column"
-                                :background "#FAFAFA"}}
-             (if render?
-               [typeform {:href (rand-nth survey-urls)}]
-               [:div])]))}))))
 
 (defn- widget-tab
   []
@@ -147,22 +124,127 @@
 
 (defn- widget-header
   []
-  (fn [{:keys [title style]}]
-    [:div {:style (merge {:width "calc(100% - 16px)"
-                          :height "calc(100% - 16px)"
-                          :padding 8
-                          :display "flex"} style)}
-     [:div {:style {:text-align "center"
-                    :margin "auto"
-                    :position "relative"
-                    :top -1
-                    :font-weight 700}} title]]))
+  (let [window-size (re-frame/subscribe [:window-did-resize])]
+    (fn [{:keys [title style on-click]}]
+      (let [{:keys [category]} @window-size]
+        [:div {:style {:width "100%"
+                       :height "100%"
+                       :display "flex"}}
+         [:div {:style (merge {:width "calc(100% - 8px)"
+                               :height "calc(100% - 8px)"
+                               :margin "auto"
+                               :display "flex"
+                               :cursor "pointer"}
+                              style)
+                :onClick (fn [] (when (fn? on-click) (on-click)))}
+          [:div {:style {:text-align "center"
+                         :margin "auto"
+                         :position "relative"
+                         :top -1
+                         :font-weight 700}} title]]]))))
+
+(defn- title-container
+  []
+  (fn [{:keys [title text-color]}]
+    [:div {:style {:width "calc(100% - 16px)"
+                   :display "flex"
+                   :padding 8}}
+     [:div {:style {:margin "auto"
+                    :text-align "center"
+                    :font-size 16
+                    :font-weight 700
+                    :color (or text-color "#000")
+                    :line-height "22px"}}
+      title]]))
+
+(defn- description-container
+  []
+  (fn [{:keys [description text-color]}]
+    [:div {:style {:width "calc(100% - 16px)"
+                   :display "flex"
+                   :padding 8}}
+     [:div {:style {:margin "auto"
+                    :text-align "left"
+                    :color (or text-color "rgb(100,100,100)")
+                    :font-size "12px"
+                    :line-height "16px"}}
+      description]]))
+
+(defn- action-buttons
+  []
+  (fn [{:keys [survey-url
+              survey-button-label
+              justify-content
+              read-more-url
+              read-more-label
+              buffer-width
+              button-min-width
+              padding
+              on-survey
+              invert-survey-button?]
+       :or {buffer-width 10
+            padding 0
+            button-min-width 50
+            justify-content "center"}}]
+    (let [{:keys [primary-color dark-primary-color]} (styles/theme)
+          survey-fn (fn []
+                      (re-frame/dispatch [:completed-survey survey-url])
+                      (re-frame/dispatch [:show-typeform true]))]
+      [:div {:style {:display "flex"
+                     :justify-content justify-content
+                     :padding padding}}
+
+       ;; take survey button
+       [mui/flat-button
+        {:label survey-button-label
+         :label-style {:font-weight 700 :top -1
+                       :text-transform "none"
+                       :color (if invert-survey-button?
+                                "rgb(100,100,100)"
+                                "#FFF")}
+         :background-color (if invert-survey-button?
+                             "#FFF"
+                             primary-color)
+         :hover-color (if invert-survey-button?
+                        "rgb(200,200,200)"
+                        dark-primary-color)
+         :style {:min-width button-min-width
+                 :border-radius 4}
+         :onTouchTap (fn []
+                       (if (fn? on-survey)
+                         (on-survey survey-fn)
+                         (survey-fn)))}]
+
+       ;; buffer
+       [:div {:style {:width buffer-width :height "100%"}}]
+
+       ;; read more button
+       [mui/flat-button
+        {:label read-more-label
+         :label-style {:color "rgb(100,100,100)"
+                       :font-weight 700
+                       :top -2
+                       :padding-left 4
+                       :padding-right 4
+                       :text-transform "none"}
+         :href read-more-url
+         :background-color "#FFFFFF"
+         :hover-color "rgb(200,200,200)"
+         :target "_none"
+         :style {:border-width "1px"
+                 :border-radius 4
+                 :min-width button-min-width
+                 :border-color "rgb(200,200,200)"
+                 :border-style "solid"}}]])
+
+    ))
 
 (defn- widget-body
   []
-  (fn [{:keys [style preview target description survey-button-label show-survey-fn survey-urls]}]
+  (fn [{:keys [style preview target description survey-button-label survey-url survey-id]}]
     (let [padding 10
           {:keys [primary-color dark-primary-color]} (styles/theme)]
+
       [:div {:style (merge {:width (str "calc(100% - " (* 2 padding) "px)")
                             :background "#FFFFFF"
                             :padding padding}
@@ -171,87 +253,41 @@
        [:div {:style {:width "100%"}}
 
         ;; preview image
-        [:div {:style {:display "inline-block"
-                       :position "relative"}}
-         [:img {:src (:img-src preview)
-                :width "100%"
-                :height "auto"}]
-         [:div {:style {:position "absolute"
-                        :top 0 :left 0
-                        :width "calc(100% - 50px)"
-                        :height "calc(100% - 54px)"
-                        :background "rgba(0,0,0,0.40)"
-                        :display "flex"
-                        :padding 25}}
-          [:div {:style {:margin "auto"
-                         :text-align "center"
-                         :font-size 16
-                         :font-weight 700
-                         :line-height "22px"}}
-           (:img-caption preview)]]]
+        (when (not-empty (:img-src preview))
+          [:div {:style {:display "inline-block"
+                         :position "relative"
+                         :min-height 100}}
+           [:img {:src (:img-src preview)
+                  :width "100%"
+                  :height "auto"}]
+           [:div {:style {:position "absolute"
+                          :top 0 :left 0
+                          :width "calc(100% - 50px)"
+                          :height "calc(100% - 54px)"
+                          :display "flex"
+                          :padding 25}}
+            [:div {:style {:margin "auto"
+                           :text-align "center"
+                           :font-size 16
+                           :font-weight 700
+                           :line-height "22px"}}
+             (:img-caption preview)]]])
 
         ;; description text
-        [:div {:style {:width "calc(100% - 16px)"
-                       :display "flex"
-                       :padding 8}}
-         [:div {:style {:margin "auto"
-                        :text-align "left"
-                        :color "rgb(100,100,100)"
-                        :font-size "12px"
-                        :line-height "16px"}}
-          description]]
+        [description-container {:description description}]
 
         ;; action buttons
-        [:div {:style {:display "flex"
-                       :justify-content "center"}}
-
-         ;; take survey button
-         [mui/flat-button
-          {:label survey-button-label
-           :label-style {:font-weight 700 :top -1
-                         :text-transform "none"}
-           :background-color primary-color
-           :hover-color dark-primary-color
-           :style {:min-width 50
-                   :border-radius 4}
-           :onTouchTap (fn [] (show-survey-fn))}]
-
-         ;; buffer
-         [:div {:style {:width 10 :height "100%"}}]
-
-         ;; read more button
-         [mui/flat-button
-          {:label (:label target)
-           :label-style {:color "rgb(100,100,100)"
-                         :font-weight 700
-                         :top -2
-                         :padding-left 4
-                         :padding-right 4
-                         :text-transform "none"}
-           :href (:href target)
-           :background-color "#FFFFFF"
-           :hover-color "rgb(200,200,200)"
-           :target "_none"
-           :style {:border-width "1px"
-                   :border-radius 4
-                   :border-color "rgb(200,200,200)"
-                   :border-style "solid"}}]
-
-         ]
-
-        ]
-
-       ])))
+        [action-buttons
+         {:survey-url survey-url
+          :survey-button-label survey-button-label
+          :read-more-url (:href target)
+          :read-more-label (:label target)}]]])))
 
 (def ^:private survey-height-percentage 0.80)
 
 (defn- state->width
   [state]
-  (condp = state
-    :hidden 300
-    :minimized 300
-    :open 300
-    0))
+  (if @(re-frame/subscribe [:show-typeform]) 350 350))
 
 (defn- state->height
   [state]
@@ -267,17 +303,15 @@
     (let [this (reagent/current-component)
           {:keys [style id on-tab-click width height tab-label tab-expand? body
                   tab-width tab-height header-height tab-icon]} (reagent/props this)
-          {:keys [text-icons-color font-family font-weight primary-color]} (styles/theme)]
+          {:keys [text-icons-color font-family font-weight primary-color]} (styles/theme)
+          children (reagent/children this)]
       [mui/paper {:style (merge {:background "transparent"
                                  :color text-icons-color
                                  :font-family font-family
                                  :font-weight font-weight
-
                                  :width width
                                  :max-height height
-
                                  :z-index z-index-base
-
                                  :transition "all 450ms cubic-bezier(0.23, 1, 0.32, 1) 0ms"
                                  :transition-property "top, width, height, max-height, opacity"}
                                 style)
@@ -316,26 +350,20 @@
         {:style {:max-height (- height tab-height)
                  :width width
                  :background primary-color
-
                  :display "flex"
                  :flex-direction "column"
-
                  :position "relative"
                  :z-index 4
-
-
                  :clear "left"
-
                  :-webkit-box-shadow "rgba(0,0,0,0.50) 0 4px 4px"
                  :-moz-box-shadow "rgba(0,0,0,0.50) 0 4px 4px"
-                 :box-shadow "rgba(0,0,0,0.50) 0 4px 4px"
-
-                 }}
+                 :box-shadow "rgba(0,0,0,0.50) 0 4px 4px"}}
 
         ;; header
         [:div {:style {:height header-height}}
          [widget-header
-          {:title tab-label}]]
+          {:on-click on-tab-click
+           :title tab-label}]]
 
         ;; body
         [:div {:style (merge {:overflow-y "scroll"}
@@ -344,12 +372,189 @@
                               :background primary-color
                               :padding-left 4
                               :padding-right 4
-                              :padding-bottom 4})} body]]])
+                              :padding-bottom 4})} (first children)]]])))
 
-    ))
+(defn- mobile-milieu-frame
+  []
+  (let [window-size (re-frame/subscribe [:window-did-resize])
+        show-typeform (re-frame/subscribe [:show-typeform])
+        frame-id (str (gensym))]
+    (fn []
+      (reagent/create-class
+       {:component-did-mount
+        (fn [this]
+          (let [rect (.getBoundingClientRect (.getElementById js/document frame-id))]
+            (reagent/set-state
+             this {:open-frame-height (.-height rect)})
+            (go (<! (timeout 450))
+                (reagent/set-state this {:render? true}))))
+        :reagent-render
+        (fn [{:keys [survey title description]}]
+          (let [{:keys [state]} survey
+                this (reagent/current-component)
+                tab-width 35
+                tab-height 60
+                window-size @window-size
+                window-width (:width window-size)
+                window-height (:height window-size)
+                {:keys [open-frame-height render? animation-state]
+                 :or {animation-state :idle}} (reagent/state this)
+                margin-left (if (and render? open-frame-height)
+                              (condp = state
+                                :hidden "100%"
+                                :minimized (str "calc(100% - " tab-width "px)")
+                                :open (if (or @show-typeform
+                                              (= animation-state :slide-left))
+                                        (- tab-width)
+                                        0)
+                                "100%")
+                              "100%")
+
+                survey-url (:url survey)
+                survey-id (:id survey)
+                survey-button-label (:survey-button-label survey)
+                read-more-url (:href (:target survey))
+                read-more-label (:label (:target survey))
+
+                {:keys [primary-color dark-primary-color]} (styles/theme)
+
+                expand? (= state :minimized)
+                icon-size tab-width]
+
+            ;; container
+            [mui/paper {:id frame-id
+                        :style {:position "fixed"
+                                :display "flex"
+                                :left margin-left
+                                :top (if @show-typeform
+                                       (if (= state :minimized)
+                                         (- window-height
+                                            open-frame-height)
+                                         0)
+                                       (- window-height
+                                          open-frame-height))
+                                :min-height 100
+                                :background "transparent"}
+                        :rounded false
+                        :zDepth 0}
+
+             ;; tab
+             [mui/paper {:style {:height tab-height
+                                 :width tab-width
+                                 :background primary-color
+                                 :cursor "pointer"
+                                 :display "flex"}
+                         :zDepth 1
+                         :rounded false
+                         :onTouchTap (fn []
+                                       (re-frame/dispatch
+                                        [:surveys (:id survey)
+                                         (assoc survey :state
+                                                (condp = state
+                                                  :minimized :open
+                                                  :open :minimized
+                                                  state))]))}
+
+              [(if expand?
+                 ico/navigation-chevron-left
+                 ico/navigation-chevron-right)
+               {:style {:width icon-size
+                        :height icon-size
+                        :margin "auto"}
+                :color "#FFF"}]
+
+              ]
+
+
+             ;; content
+             [mui/paper {:style (merge {:width (- window-width
+                                                  (if (or @show-typeform
+                                                          (= animation-state :slide-left))
+                                                    0
+                                                    tab-width))
+                                        :padding-top 4
+                                        :padding-bottom 4
+                                        :background primary-color
+                                        :display "flex"}
+                                       (when @show-typeform
+                                         {:height window-height}))
+                         :zDepth 0
+                         :rounded false}
+
+              [mui/paper {:style {:width "calc(100% - 8px)"
+                                  :height (when @show-typeform
+                                            (- window-height 8))
+                                  :margin "auto"
+                                  :overflow-y "hidden"
+                                  :background "#FFF"}
+                          :zDepth 0
+                          :rounded false}
+
+               [:div {:style {:width "100%"
+                              :height 160
+                              :position "relative"
+                              :background (if @show-typeform
+                                            primary-color
+                                            "transparent")}}
+                ;; title
+                [title-container
+                 {:title title
+                  :text-color (if @show-typeform
+                                "#FFF"
+                                "#000")}]
+
+                ;; description
+                [:div {:style {:width "100%"
+                               :display "flex"}}
+                 [:div {:style {:margin-left "auto"
+                                :margin-right "auto"
+                                :max-width "90%"}}
+                  [description-container
+                   {:description description
+                    :text-color (if @show-typeform
+                                  "#FFF"
+                                  "#000")}]]]
+
+                ;; action buttons
+                [:div {:style {:position "absolute"
+                               :bottom 16
+                               :width "100%"
+                               :display "flex"}}
+                 [:div {:style {:margin-left "auto"
+                                :margin-right "auto"
+                                :max-width "90%"
+                                :width "100%"}}
+                  [action-buttons
+                   {:buffer-width 0
+                    :button-min-width 130
+                    :padding 0
+                    :justify-content "space-around"
+                    :survey-url survey-url
+                    :survey-button-label (if @show-typeform
+                                           "Close"
+                                           survey-button-label)
+                    :invert-survey-button? @show-typeform
+                    :read-more-url read-more-url
+                    :read-more-label read-more-label
+                    :on-survey (fn [survey-fn]
+                                 (if @show-typeform
+                                   (re-frame/dispatch
+                                    [:surveys survey-id
+                                     (assoc survey :state :minimized)])
+                                   (do
+                                     (go (reagent/set-state this {:animation-state :slide-left})
+                                         (<! (timeout 450))
+                                         (survey-fn)
+                                         (<! (timeout 450))
+                                         (reagent/set-state this {:animation-state :idle})))))}]]]]
+
+               (when @show-typeform
+                 [:div {:style {:width "100%"
+                                :height "calc(100% - 160px)"}}
+                  [typeform {:href survey-url
+                             :style {:height "100%"}}]])]]]))}))))
 
 (defn- widget-frame
-  "state in #{:hidden :minimized :open :survey}"
   [{:keys [target-url
            target-label
            survey-urls
@@ -358,13 +563,14 @@
            description
            preview-img-src
            preview-img-caption
-           appear-after-ms]}]
+           appear-after-ms
+           mobile-title
+           mobile-description]}]
   (let [survey-id (str (gensym))
         frame-id (str (gensym))
         survey (re-frame/subscribe [:surveys survey-id])
         show-typeform (re-frame/subscribe [:show-typeform])
         window-size (re-frame/subscribe [:window-did-resize])
-
         survey-url (rand-nth survey-urls)]
     (fn []
       (reagent/create-class
@@ -376,8 +582,8 @@
                                   :img-caption preview-img-caption}
                         :target {:href target-url
                                  :label target-label}
-                        :description description
                         :survey-button-label survey-button-label
+                        :description description
                         :tab-label minimized-label
                         :state :hidden}]
 
@@ -388,9 +594,7 @@
             (go (<! (timeout (or appear-after-ms 3000)))
                 (re-frame/dispatch
                  [:surveys survey-id
-                  (assoc survey :state :minimized)])))
-
-          )
+                  (assoc survey :state :minimized)]))))
         :reagent-render
         (fn []
           (let [this (reagent/current-component)
@@ -399,87 +603,84 @@
                 height (state->height state)
                 width (state->width state)
                 {:keys [open-frame-height] :or {open-frame-height height}} (reagent/state this)
-                window-height (.-innerHeight js/window)
-                window-width (.-innerWidth js/window)
+                window-size @window-size
+                window-height (:height window-size)
+                window-width (:width window-size)
+                mobile? (= (:category window-size) :small)
                 header-height 40
                 tab-width 50
                 tab-height 25
-                _ @window-size]
+                margin-right (* window-width 0.15)
+                margin-bottom 8
 
-            [:div
+                typeform-height (- open-frame-height
+                                   tab-height
+                                   header-height
+                                   margin-bottom)]
 
-             ;; typeform survey
-             (let [height (max (* (.-innerHeight js/window) survey-height-percentage) 400)
-                   width height]
-               [milieu-frame
-                {:id (str frame-id "-typeform")
-                 :width width
-                 :height height
-                 :header-height header-height
-                 :tab-width tab-width
-                 :tab-height tab-height
-                 :tab-label (-> survey :preview :img-caption)
-                 :tab-expand? false
-                 :on-tab-click (fn [] (re-frame/dispatch [:show-typeform false]))
-                 :style {:position "fixed"
-                         :top (/ (- (.-innerHeight js/window) height) 2)
-                         :left (/ (- (.-innerWidth js/window) width) 2)
-                         :opacity (if @show-typeform 1.0 0.0)}
-                 :tab-icon ico/content-clear
-                 :body (if @show-typeform
-                         [:div {:style {:width "100%"
-                                        :height (- height
-                                                   tab-height
-                                                   header-height
-                                                   8)}}
-                          [typeform {:href survey-url}]]
-                         [:div])}])
+            (if (not-empty window-size)
+              [:div
 
-             ;; milieu tab
-             [milieu-frame
-              {:id frame-id
-               :width width
-               :height height
-               :header-height header-height
-               :tab-width tab-width
-               :tab-height tab-height
-               :tab-label tab-label
-               :tab-expand? (= state :minimized)
-               :on-tab-click (fn []
+               ;; milieu tab
+               (if mobile?
+                 [mobile-milieu-frame
+                  {:survey (assoc survey
+                                  :id survey-id
+                                  :url survey-url)
+                   :title mobile-title
+                   :description mobile-description}]
+                 [milieu-frame
+                  {:id frame-id
+                   :width width
+                   :height height
+                   :header-height header-height
+                   :tab-width tab-width
+                   :tab-height tab-height
+                   :tab-label tab-label
+                   :tab-expand? (= state :minimized)
+                   :on-tab-click (fn []
 
-                               (when (= state :minimized)
-                                 (let [rect (.getBoundingClientRect (.getElementById js/document frame-id))]
-                                   (reagent/set-state
-                                    this {:open-frame-height (.-height rect)})))
+                                   (when (= state :minimized)
+                                     (let [rect (.getBoundingClientRect (.getElementById js/document frame-id))]
+                                       (reagent/set-state
+                                        this {:open-frame-height (.-height rect)})))
 
-                               (re-frame/dispatch
-                                [:surveys survey-id
-                                 (assoc survey :state
-                                        (condp = state
-                                          :minimized :open
-                                          :open :minimized
-                                          state))]))
-               :style {:position "fixed"
-                       :right "15%"
-                       :top (condp = state
-                              :minimized (- window-height
-                                            tab-height
-                                            header-height)
-                              :open (- window-height open-frame-height 8)
-                              :hidden window-height
-                              window-height)}
+                                   (re-frame/dispatch
+                                    [:surveys survey-id
+                                     (assoc survey :state
+                                            (condp = state
+                                              :minimized :open
+                                              :open :minimized
+                                              state))]))
+                   :style {:position "fixed"
+                           :right margin-right
+                           :top (condp = state
+                                  :minimized (- window-height
+                                                tab-height
+                                                header-height)
+                                  :open (if @show-typeform
+                                          (- window-height
+                                             (+ typeform-height
+                                                tab-height
+                                                header-height
+                                                margin-bottom
+                                                4))
+                                          (- window-height
+                                             open-frame-height
+                                             margin-bottom))
+                                  :hidden window-height
+                                  window-height)}}
+                  (condp = state
+                    :hidden [:div]
 
-               :body (if (= state :hidden)
-                       [:div]
-                       [widget-body
-                        (merge {:survey? (= state :survey)
-                                :show-survey-fn (fn []
+                    (if @show-typeform
 
-                                                  (re-frame/dispatch
-                                                   [:surveys survey-id
-                                                    (assoc survey :state :minimized)])
+                      [typeform {:href survey-url
+                                 :style {:height typeform-height}}]
 
-                                                  (re-frame/dispatch [:completed-survey survey-url])
-
-                                                  (re-frame/dispatch
-                                                   [:show-typeform true]))} survey)])}]]))}))))
+                      [widget-body
+                       (merge {:survey? (= state :survey)
+                               :survey-url survey-url
+                               :survey-id survey-id}
+                              survey)]))])]
+              [:div])))}))))
