@@ -43,6 +43,7 @@
        :survey-button-label (:data-survey-button-label data)
        :minimized-label (:data-minimized-label data)
        :description (:data-description data)
+       :auto-open (= "true" (:data-auto-open data))
        :appear-after-ms (let [x (:data-appear-after-ms data)]
                           (when (and (string? x) (not-empty x))
                             (string->long x)))}]]))
@@ -565,7 +566,8 @@
            preview-img-caption
            appear-after-ms
            mobile-title
-           mobile-description]}]
+           mobile-description
+           auto-open]}]
   (let [survey-id (str (gensym))
         frame-id (str (gensym))
         survey (re-frame/subscribe [:surveys survey-id])
@@ -592,9 +594,19 @@
 
             ;; move survey to minimized after 3 seconds
             (go (<! (timeout (or appear-after-ms 3000)))
-                (re-frame/dispatch
-                 [:surveys survey-id
-                  (assoc survey :state :minimized)]))))
+
+                (if auto-open
+                  (do
+                    (re-frame/dispatch
+                     [:surveys survey-id
+                      (assoc survey :state :hidden)])
+                    (when auto-open (<! (timeout 450)))
+                    (re-frame/dispatch
+                     [:surveys survey-id
+                      (assoc survey :state :open)]))
+                  (re-frame/dispatch
+                   [:surveys survey-id
+                    (assoc survey :state :minimized)])))))
         :reagent-render
         (fn []
           (let [this (reagent/current-component)
@@ -670,17 +682,14 @@
                                              margin-bottom))
                                   :hidden window-height
                                   window-height)}}
-                  (condp = state
-                    :hidden [:div]
+                  (if @show-typeform
 
-                    (if @show-typeform
+                    [typeform {:href survey-url
+                               :style {:height typeform-height}}]
 
-                      [typeform {:href survey-url
-                                 :style {:height typeform-height}}]
-
-                      [widget-body
-                       (merge {:survey? (= state :survey)
-                               :survey-url survey-url
-                               :survey-id survey-id}
-                              survey)]))])]
+                    [widget-body
+                     (merge {:survey? (= state :survey)
+                             :survey-url survey-url
+                             :survey-id survey-id}
+                            survey)])])]
               [:div])))}))))
