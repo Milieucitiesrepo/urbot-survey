@@ -293,7 +293,7 @@
 (defn- state->height
   [state]
   (condp = state
-    :hidden 0
+    :hidden 500
     :minimized 500
     :open 500
     0))
@@ -420,7 +420,13 @@
                 {:keys [primary-color dark-primary-color]} (styles/theme)
 
                 expand? (= state :minimized)
-                icon-size tab-width]
+                icon-size tab-width
+
+                show-text? (if @show-typeform
+                             (> window-height 640)
+                             true)
+                min-typeform-height (if @show-typeform 500 0)
+                header-height (if show-text? 160 60)]
 
             ;; container
             [mui/paper {:id frame-id
@@ -476,7 +482,9 @@
                                         :padding-top 4
                                         :padding-bottom 4
                                         :background primary-color
-                                        :display "flex"}
+                                        :display "flex"
+
+                                        :min-height (+ header-height min-typeform-height)}
                                        (when @show-typeform
                                          {:height window-height}))
                          :zDepth 0
@@ -485,36 +493,41 @@
               [mui/paper {:style {:width "calc(100% - 8px)"
                                   :height (when @show-typeform
                                             (- window-height 8))
-                                  :margin "auto"
+                                  :margin-left "auto"
+                                  :margin-right "auto"
                                   :overflow-y "hidden"
                                   :background "#FFF"}
                           :zDepth 0
                           :rounded false}
 
                [:div {:style {:width "100%"
-                              :height 160
+                              :height header-height
                               :position "relative"
                               :background (if @show-typeform
                                             primary-color
                                             "transparent")}}
                 ;; title
-                [title-container
-                 {:title title
-                  :text-color (if @show-typeform
-                                "#FFF"
-                                "#000")}]
-
-                ;; description
-                [:div {:style {:width "100%"
-                               :display "flex"}}
-                 [:div {:style {:margin-left "auto"
-                                :margin-right "auto"
-                                :max-width "90%"}}
-                  [description-container
-                   {:description description
+                (if show-text?
+                  [title-container
+                   {:title title
                     :text-color (if @show-typeform
                                   "#FFF"
-                                  "#000")}]]]
+                                  "#000")}]
+                  [:div])
+
+                ;; description
+                (if show-text?
+                  [:div {:style {:width "100%"
+                                 :display "flex"}}
+                   [:div {:style {:margin-left "auto"
+                                  :margin-right "auto"
+                                  :max-width "90%"}}
+                    [description-container
+                     {:description description
+                      :text-color (if @show-typeform
+                                    "#FFF"
+                                    "#000")}]]]
+                  [:div])
 
                 ;; action buttons
                 [:div {:style {:position "absolute"
@@ -551,7 +564,8 @@
 
                (when @show-typeform
                  [:div {:style {:width "100%"
-                                :height "calc(100% - 160px)"}}
+                                :min-height min-typeform-height
+                                :height (str "calc(100% - " header-height "px)")}}
                   [typeform {:href survey-url
                              :style {:height "100%"}}]])]]]))}))))
 
@@ -577,7 +591,7 @@
     (fn []
       (reagent/create-class
        {:component-will-mount
-        (fn []
+        (fn [this]
 
           (let [survey {:survey-urls survey-urls
                         :preview {:img-src preview-img-src
@@ -601,6 +615,10 @@
                      [:surveys survey-id
                       (assoc survey :state :hidden)])
                     (when auto-open (<! (timeout 450)))
+                    (when-let [el (.getElementById js/document frame-id)]
+                      (let [rect (.getBoundingClientRect el)]
+                        (reagent/set-state
+                         this {:open-frame-height (.-height rect)})))
                     (re-frame/dispatch
                      [:surveys survey-id
                       (assoc survey :state :open)]))
